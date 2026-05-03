@@ -8,7 +8,7 @@
 //      progress vs target, percentage at the right = pace ratio.
 // ============================================================================
 
-import { store, onChange, isHistoric } from './data.js';
+import { store, onChange, isHistoric, setProgramRollover } from './data.js';
 
 // ---------- Program definitions ----------
 // Logos live in assets/logos/. Files are PNGs (despite the original SVG
@@ -24,6 +24,7 @@ const PROGRAMS = [
     accentSoft: '#e6ecf5',
     targets: [900, 1850],
     airlines: ['AF', 'KL'],
+    rolloverEnabled: true,                   // shows "+" button by the top target
   },
   {
     id: 'ay',
@@ -71,9 +72,15 @@ export function initStatus() {
             </header>
 
             <div class="status-card">
-              <div class="status-card-label">Tier points <span class="status-year" id="status-year-${p.id}"></span></div>
+              <div class="status-card-label">
+                <span>Tier points <span class="status-year" id="status-year-${p.id}"></span></span>
+                ${p.rolloverEnabled ? `
+                  <button class="rollover-btn" data-program="${p.id}" aria-label="Set rollover miles" title="Set rollover miles">+</button>
+                ` : ''}
+              </div>
               <div class="tp-bar" id="tp-bar-${p.id}"></div>
               <div class="tp-axis" id="tp-axis-${p.id}"></div>
+              <div class="tp-rollover-note" id="tp-rollover-${p.id}"></div>
             </div>
 
             <div class="status-card">
@@ -91,9 +98,17 @@ export function initStatus() {
     </div>
   `;
 
+  // Wire rollover buttons
+  mounted.querySelectorAll('.rollover-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const programId = btn.dataset.program;
+      openRolloverModal(programId);
+    });
+  });
+
   onChange(evt => {
     if (!evt) return;
-    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'auth:locked') {
+    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'auth:locked' || evt.type === 'program:changed') {
       render();
     }
   });
@@ -107,7 +122,7 @@ export function initStatus() {
 function render() {
   const now = new Date();
   const year = now.getFullYear();
-  const yearProgress = computeYearProgress(now);   // 0..1
+  const yearProgress = computeYearProgress(now);
 
   for (const p of PROGRAMS) {
     const balance = computeBalance(p, year);
@@ -116,6 +131,12 @@ function render() {
 
     const $year = document.getElementById(`status-year-${p.id}`);
     if ($year) $year.textContent = year;
+
+    const $note = document.getElementById(`tp-rollover-${p.id}`);
+    if ($note && p.rolloverEnabled) {
+      const rollover = store.programAdjustments?.get(p.id)?.rollover || 0;
+      $note.textContent = rollover > 0 ? `Includes ${fmt(rollover)} rollover miles` : '';
+    }
   }
 }
 
@@ -130,6 +151,11 @@ function computeBalance(program, year) {
     if (!allowed.has(f.airline.toUpperCase())) continue;
     if (f.tier_miles == null) continue;
     sum += Number(f.tier_miles) || 0;
+  }
+  // Add any rollover miles configured for this program
+  const adj = store.programAdjustments?.get(program.id);
+  if (adj && Number.isFinite(adj.rollover)) {
+    sum += adj.rollover;
   }
   return sum;
 }
@@ -249,3 +275,76 @@ function renderPaceBar(program, balance, yearProgress) {
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function fmt(n) { return Number(n).toLocaleString(); }
 function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
+
+// ============================================================
+// Rollover modal
+// ============================================================
+function openRolloverModal(programId) {
+  const program = PROGRAMS.find(p => p.id === programId);
+  if (!program) return;
+  const current = store.programAdjustments?.get(programId)?.rollover || 0;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  wrap.innerHTML = `
+    <div class="modal-card rollover-modal">
+      <header class="modal-head">
+        <h2>Rollover miles — ${program.name}</h2>
+        <button class="ghost icon-only" id="ro-close" aria-label="Close">×</button>
+      </header>
+      <div class="modal-body">
+        <p class="muted">
+          Rollover miles are added to the current year balance — useful for
+          programs that carry forward unspent tier points from the previous
+          year. Set to 0 to remove.
+        </p>
+        <div class="field">
+          <label>Rollover miles</label>
+          <input type="number" id="ro-input" min="0" step="1" value="${current}" autocomplete="off">
+        </div>
+        <p class="error-msg" id="ro-error"></p>
+      </div>
+      <footer class="modal-foot">
+        <span></span>
+        <div class="foot-right">
+          <button class="ghost" id="ro-cancel">Cancel</button>
+          <button class="primary" id="ro-save">Save</button>
+        </div>
+      </footer>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  const close = () => wrap.remove();
+  const $input = wrap.querySelector('#ro-input');
+  setTimeout(() => { $input.focus(); $input.select(); }, 0);
+
+  wrap.querySelector('#ro-close').addEventListener('click', close);
+  wrap.querySelector('#ro-cancel').addEventListener('click', close);
+  wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+
+  const save = async () => {
+    const $err = wrap.querySelector('#ro-error');
+    $err.textContent = '';
+    const value = $input.value.trim();
+    if (value === '' || isNaN(Number(value)) || Number(value) < 0) {
+      $err.textContent = 'Enter a non-negative number.';
+      return;
+    }
+    const $save = wrap.querySelector('#ro-save');
+    $save.disabled = true;
+    try {
+      await setProgramRollover(programId, Number(value));
+      close();
+    } catch (e) {
+      $err.textContent = 'Save failed: ' + (e.message || e);
+      $save.disabled = false;
+    }
+  };
+
+  wrap.querySelector('#ro-save').addEventListener('click', save);
+  $input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') save();
+    if (e.key === 'Escape') close();
+  });
+}

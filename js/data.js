@@ -15,6 +15,7 @@ export const store = {
   airports: new Map(),
   ready: false,
   user: null,  // { id, email } or null
+  programAdjustments: new Map(),  // program_id -> { rollover, ... }
 };
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit(evt) { for (const fn of listeners) fn(evt); }
@@ -52,6 +53,7 @@ export async function signOut() {
   store.user = null;
   store.flights = [];
   store.airports = new Map();
+  store.programAdjustments = new Map();
   store.ready = false;
   emit({ type: 'auth:locked' });
 }
@@ -73,14 +75,16 @@ async function fetchAll(table, orderCol = null) {
 }
 
 export async function loadAll() {
-  const [flights, airports] = await Promise.all([
+  const [flights, airports, adjustments] = await Promise.all([
     fetchAll('flights', 'date'),
     fetchAll('airports'),
+    fetchAll('program_adjustments'),
     loadLogos(),
   ]);
   flights.sort(flightDateCompare);
   store.flights = flights;
   store.airports = new Map(airports.map(a => [a.iata, a]));
+  store.programAdjustments = new Map(adjustments.map(r => [r.program_id, r]));
   store.ready = true;
   emit({ type: 'data:loaded', counts: { flights: store.flights.length, airports: store.airports.size } });
 }
@@ -142,6 +146,24 @@ export async function deleteAirport(iata) {
   if (error) throw error;
   store.airports.delete(iata);
   emit({ type: 'airports:changed', kind: 'delete', iata });
+}
+
+// ----------- Program adjustments (rollover miles, etc.) -----------
+export async function setProgramRollover(programId, rollover) {
+  const payload = {
+    program_id: programId,
+    rollover: Math.max(0, Math.round(Number(rollover) || 0)),
+    updated_at: new Date().toISOString(),
+  };
+  const { data, error } = await sb
+    .from('program_adjustments')
+    .upsert(payload, { onConflict: 'program_id' })
+    .select()
+    .single();
+  if (error) throw error;
+  store.programAdjustments.set(programId, data);
+  emit({ type: 'program:changed', programId, row: data });
+  return data;
 }
 
 // ----------- Distance -----------
