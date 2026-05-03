@@ -43,15 +43,31 @@ CABIN_MAP = {
 }
 
 # ---------- Fetch existing airports for validation + distance ----------
-def http_get(path):
-    req = Request(f"{URL}/rest/v1/{path}", headers={
-        'apikey': KEY, 'Authorization': f'Bearer {KEY}',
-    })
+def http_get(path, range_header=None):
+    headers = {'apikey': KEY, 'Authorization': f'Bearer {KEY}'}
+    if range_header:
+        headers['Range'] = range_header
+    req = Request(f"{URL}/rest/v1/{path}", headers=headers)
     with urlopen(req, timeout=60) as r:
         return json.loads(r.read())
 
+def fetch_all_airports():
+    """Paginate through the airports table. Supabase caps each response at 1000
+    rows regardless of `limit`, so we fetch in pages until we get a short one."""
+    PAGE = 1000
+    out = []
+    offset = 0
+    while True:
+        rng = f"{offset}-{offset + PAGE - 1}"
+        chunk = http_get(f"airports?select=iata,lat,lon", range_header=rng)
+        out.extend(chunk)
+        if len(chunk) < PAGE:
+            break
+        offset += PAGE
+    return out
+
 print("Fetching airports for validation…")
-airports_list = http_get("airports?select=iata,lat,lon&limit=10000")
+airports_list = fetch_all_airports()
 airport_by_iata = {a['iata']: a for a in airports_list}
 print(f"  {len(airport_by_iata)} airports in DB.")
 

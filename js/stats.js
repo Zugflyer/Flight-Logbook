@@ -8,7 +8,7 @@
 // row in each table.
 // ============================================================================
 
-import { store, onChange } from './data.js';
+import { store, onChange, isHistoric } from './data.js';
 import { getLogoUrl } from './logos.js';
 
 const TOP_N = 20;
@@ -80,7 +80,8 @@ export function initStats() {
 // ============================================================
 function render() {
   if (!mounted) return;
-  const flights = store.flights || [];
+  // Stats exclude historic (Pre-2012) flights — they're for the map only.
+  const flights = (store.flights || []).filter(f => !isHistoric(f));
 
   // ---- Aggregate counts ----
   const airlineCounts = new Map();

@@ -5,7 +5,7 @@
 // Visual style matches the rest of the site (Outlook blue, light theme).
 // ============================================================================
 
-import { store, onChange } from './data.js';
+import { store, onChange, isHistoric } from './data.js';
 import { getLogoUrl } from './logos.js';
 
 const CABINS = ['Economy', 'Premium Economy', 'Business', 'First'];
@@ -189,10 +189,12 @@ function populateFilterOptions() {
   if (!store.ready) return;
   const flights = store.flights || [];
 
-  const years = [...new Set(flights.map(f => f.date.slice(0, 4)))].sort().reverse();
+  const years = [...new Set(flights.filter(f => !isHistoric(f) && f.date).map(f => f.date.slice(0, 4)))].sort().reverse();
+  const hasHistoric = flights.some(isHistoric);
   const $year = document.getElementById('mf-year');
   $year.innerHTML = '<option value="all">All years</option>' +
-    years.map(y => `<option value="${y}">${y}</option>`).join('');
+    years.map(y => `<option value="${y}">${y}</option>`).join('') +
+    (hasHistoric ? '<option value="historic">Pre-2012</option>' : '');
   $year.value = filters.year;
 
   const airlines = [...new Set(flights.map(f => f.airline).filter(Boolean))].sort();
@@ -220,7 +222,11 @@ function populateFilterOptions() {
 
 function applyFilters() {
   let rows = store.flights || [];
-  if (filters.year !== 'all') rows = rows.filter(f => f.date.startsWith(filters.year));
+  if (filters.year === 'historic') {
+    rows = rows.filter(isHistoric);
+  } else if (filters.year !== 'all') {
+    rows = rows.filter(f => !isHistoric(f) && f.date && f.date.startsWith(filters.year));
+  }
   if (filters.airline !== 'all') rows = rows.filter(f => f.airline === filters.airline);
   if (filters.cabin !== 'all') rows = rows.filter(f => f.cabin === filters.cabin);
   if (filters.endpoint !== 'all') {
@@ -329,7 +335,6 @@ function render() {
       { direction: 'top', offset: [0, -2], className: 'map-tooltip-wrap' }
     );
     marker.on('click', (e) => {
-      console.log('[map] marker click fired for', iata);
       // Defense-in-depth: the background click handler above already filters
       // marker clicks via DOM target, but stopping propagation here too keeps
       // things clean and avoids any timing race.
@@ -350,22 +355,17 @@ function render() {
 // Selection / connections popup
 // ============================================================
 function selectAirport(iata) {
-  console.log('[map] selectAirport called with:', iata, 'previously:', selectedAirport);
   if (selectedAirport === iata) {
     selectedAirport = null;
   } else {
     selectedAirport = iata;
   }
-  console.log('[map] selectedAirport now:', selectedAirport);
   closeConnectionsPopup();
   // Defer to the next tick so the click event finishes propagating before
   // we destroy and rebuild all the markers in render(). Without this, the
   // marker that was just clicked gets removed from the DOM mid-handler in
   // some browsers, which can swallow the state change.
-  setTimeout(() => {
-    console.log('[map] running deferred render, selectedAirport=', selectedAirport);
-    render();
-  }, 0);
+  setTimeout(render, 0);
 }
 
 let openPopup = null;
