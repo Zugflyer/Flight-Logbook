@@ -1525,3 +1525,69 @@ button.ghost.danger:hover { color: var(--danger); border-color: var(--danger); b
   .status-grid { grid-template-columns: 1fr; }
   .status-root { padding: 16px; }
 }
+
+/* ===== Tier-points breakdown (debug / verify) ===== */
+.tp-breakdown {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.tp-breakdown summary {
+  cursor: pointer;
+  color: var(--fg-2);
+  font-weight: 500;
+  padding: 4px 0;
+  user-select: none;
+}
+.tp-breakdown summary:hover {
+  color: var(--prog-accent);
+}
+.tp-breakdown[open] summary {
+  margin-bottom: 6px;
+  color: var(--prog-accent);
+}
+.bd-filter {
+  margin: 0 0 6px;
+  color: var(--fg-3);
+  font-size: 11px;
+  font-style: italic;
+}
+.bd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.bd-table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--accent-line);
+}
+.bd-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--bg-2);
+  color: var(--fg-1);
+}
+.bd-date { white-space: nowrap; color: var(--fg-2); }
+.bd-airline { font-weight: 600; }
+.bd-route { color: var(--fg-1); }
+.bd-miles { text-align: right; font-weight: 500; }
+.bd-empty { text-align: center; color: var(--fg-3); padding: 12px 6px; font-style: italic; }
+.bd-subtotal td, .bd-rollover td {
+  font-weight: 500;
+  color: var(--fg-2);
+  border-top: 1px solid var(--accent-line);
+  border-bottom: none;
+  padding-top: 6px;
+}
+.bd-total td {
+  font-weight: 700;
+  color: var(--prog-accent);
+  border-top: 1px solid var(--prog-accent);
+  border-bottom: none;
+  padding-top: 6px;
+  font-size: 13px;
+}

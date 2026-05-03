@@ -81,6 +81,10 @@ export function initStatus() {
               <div class="tp-bar" id="tp-bar-${p.id}"></div>
               <div class="tp-axis" id="tp-axis-${p.id}"></div>
               <div class="tp-rollover-note" id="tp-rollover-${p.id}"></div>
+              <details class="tp-breakdown">
+                <summary>Show contributing flights</summary>
+                <div id="tp-breakdown-${p.id}"></div>
+              </details>
             </div>
 
             <div class="status-card">
@@ -125,24 +129,28 @@ function render() {
   const yearProgress = computeYearProgress(now);
 
   for (const p of PROGRAMS) {
-    const balance = computeBalance(p, year);
-    renderTierBar(p, balance);
-    renderPaceBar(p, balance, yearProgress);
+    const b = computeBalance(p, year);
+    renderTierBar(p, b.total);
+    renderPaceBar(p, b.total, yearProgress);
+    renderBreakdown(p, b);
 
     const $year = document.getElementById(`status-year-${p.id}`);
     if ($year) $year.textContent = year;
 
     const $note = document.getElementById(`tp-rollover-${p.id}`);
     if ($note && p.rolloverEnabled) {
-      const rollover = store.programAdjustments?.get(p.id)?.rollover || 0;
-      $note.textContent = rollover > 0 ? `Includes ${fmt(rollover)} rollover miles` : '';
+      $note.textContent = b.rollover > 0 ? `Includes ${fmt(b.rollover)} rollover miles` : '';
     }
   }
 }
 
 // ---------- Balance ----------
+// Returns { total, contributions, rollover } where contributions is the list
+// of flights that summed into the total, in date order. Useful for the
+// debug breakdown panel.
 function computeBalance(program, year) {
   const allowed = new Set(program.airlines.map(a => a.toUpperCase()));
+  const contributions = [];
   let sum = 0;
   for (const f of store.flights) {
     if (isHistoric(f) || !f.date) continue;
@@ -150,14 +158,13 @@ function computeBalance(program, year) {
     if (!f.airline) continue;
     if (!allowed.has(f.airline.toUpperCase())) continue;
     if (f.tier_miles == null) continue;
-    sum += Number(f.tier_miles) || 0;
+    const miles = Number(f.tier_miles) || 0;
+    sum += miles;
+    contributions.push({ flight: f, miles });
   }
-  // Add any rollover miles configured for this program
   const adj = store.programAdjustments?.get(program.id);
-  if (adj && Number.isFinite(adj.rollover)) {
-    sum += adj.rollover;
-  }
-  return sum;
+  const rollover = (adj && Number.isFinite(adj.rollover)) ? adj.rollover : 0;
+  return { total: sum + rollover, fromFlights: sum, contributions, rollover };
 }
 
 // ---------- Year fraction ----------
@@ -272,7 +279,51 @@ function renderPaceBar(program, balance, yearProgress) {
 // ============================================================
 // Helpers
 // ============================================================
-function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+// ============================================================
+// Debug breakdown — every flight contributing to this program's balance
+// ============================================================
+function renderBreakdown(program, balance) {
+  const $el = document.getElementById(`tp-breakdown-${program.id}`);
+  if (!$el) return;
+  const rows = balance.contributions.map(({ flight: f, miles }) => `
+    <tr>
+      <td class="bd-date">${f.date}</td>
+      <td class="bd-airline">${escapeHtml(f.airline || '')}</td>
+      <td class="bd-route">${f.from_iata}→${f.to_iata}</td>
+      <td class="bd-miles">${fmt(miles)}</td>
+    </tr>
+  `).join('');
+  const filterSummary = `Year: ${new Date().getFullYear()} · Airlines: ${program.airlines.join(', ')}`;
+  $el.innerHTML = `
+    <p class="bd-filter">${filterSummary}</p>
+    <table class="bd-table">
+      <thead><tr><th>Date</th><th>AL</th><th>Route</th><th>TP</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4" class="bd-empty">No matching flights this year.</td></tr>'}</tbody>
+      <tfoot>
+        <tr class="bd-subtotal">
+          <td colspan="3">Subtotal from flights</td>
+          <td class="bd-miles">${fmt(balance.fromFlights)}</td>
+        </tr>
+        ${balance.rollover > 0 ? `
+          <tr class="bd-rollover">
+            <td colspan="3">+ Rollover miles</td>
+            <td class="bd-miles">${fmt(balance.rollover)}</td>
+          </tr>
+        ` : ''}
+        <tr class="bd-total">
+          <td colspan="3">Total</td>
+          <td class="bd-miles">${fmt(balance.total)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+
 function fmt(n) { return Number(n).toLocaleString(); }
 function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
 
