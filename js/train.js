@@ -299,10 +299,34 @@ function initAddForm() {
   document.addEventListener('click', e => {
     if (!$opDd.contains(e.target)) closeDd();
   });
-  // Keyboard: Enter/Space toggles, Escape closes
+  // Keyboard: Enter/Space toggles, Escape closes; letter keys jump-select
   $opDd.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $opDd.classList.toggle('open'); }
-    else if (e.key === 'Escape') closeDd();
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      $opDd.classList.toggle('open');
+      return;
+    }
+    if (e.key === 'Escape') {
+      closeDd();
+      return;
+    }
+    // Single printable letter — match operator by first letter of its name.
+    // This treats "T" → "TGV Lyria" (since it begins with T) and "E" →
+    // "Eurostar". For the German one ("DB"), "D" matches.
+    if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+      const letter = e.key.toLowerCase();
+      // Find all operators starting with this letter; cycle through them
+      // on repeat presses.
+      const matches = OPERATORS.filter(op => op.id.toLowerCase().startsWith(letter));
+      if (matches.length === 0) return;
+      e.preventDefault();
+      const currentValue = $opHidden.value;
+      const currentIdx = matches.findIndex(op => op.id === currentValue);
+      // If current is in matches, advance; else jump to the first match.
+      const nextOp = matches[currentIdx >= 0 ? (currentIdx + 1) % matches.length : 0];
+      setLogoDropdownValue($opDd, $opCurrent, $opHidden, nextOp.id);
+      $opDd.classList.remove('error');
+    }
   });
 
   // Arrow keys on the date field shift by ±1 day.

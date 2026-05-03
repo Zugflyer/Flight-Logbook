@@ -2074,8 +2074,11 @@ button.ghost.small {
   background: var(--bg-1);
   border: 1px solid var(--accent-line);
   border-radius: 10px;
-  overflow: hidden;
 }
+/* Status card clips its bar fills; add card must allow the operator
+   dropdown to overflow below the card edge. */
+.train-status-card { overflow: hidden; }
+.train-add-card { overflow: visible; }
 
 /* The form card is now compact — no internal padding doubled by .train-form */
 .train-add-card .train-form {
@@ -2313,21 +2316,26 @@ button.ghost.small {
   flex-direction: column;
 }
 .train-status-list {
-  padding: 18px 20px 22px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
 }
 .train-prog {
   --prog-accent: var(--accent);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  /* Sub-card treatment so each program is its own visual block */
+  background: var(--bg-0);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  padding: 14px 16px;
 }
-/* Light separator line between programs */
+/* No extra border between programs — each card already has its own */
 .train-prog + .train-prog {
   border-top: 1px solid var(--accent-line);
-  padding-top: 18px;
+  padding-top: 14px;
 }
 .train-prog-head {
   display: grid;
