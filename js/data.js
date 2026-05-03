@@ -1,15 +1,11 @@
 // ============================================================================
-// Flight Log — data layer (password-gate version, no magic links)
+// Flight Log — data layer (real Supabase auth)
 // ============================================================================
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY, APP_PASSWORD } from './config.js';
+import { sb } from './sb.js';
 import { loadLogos } from './logos.js';
 
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-
-const LOCK_KEY = 'flightlog.unlocked.v1';
+export { sb };  // re-export so other modules can keep importing from data.js
 
 // ----------- Store -----------
 const listeners = new Set();
@@ -18,25 +14,42 @@ export const store = {
   flights: [],
   airports: new Map(),
   ready: false,
+  user: null,  // { id, email } or null
 };
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit(evt) { for (const fn of listeners) fn(evt); }
 
-// ----------- Password gate -----------
-export function isUnlocked() {
-  return localStorage.getItem(LOCK_KEY) === '1';
+// ----------- Historic flight helpers -----------
+export function isHistoric(f) {
+  return f.is_historic === true || (f.is_historic == null && f.date == null);
 }
-export function tryUnlock(pw) {
-  if (!APP_PASSWORD || pw === APP_PASSWORD) {
-    localStorage.setItem(LOCK_KEY, '1');
-    store.unlocked = true;
-    return true;
-  }
-  return false;
+export function flightDateCompare(a, b) {
+  const ah = isHistoric(a), bh = isHistoric(b);
+  if (ah && bh) return 0;
+  if (ah) return -1;
+  if (bh) return 1;
+  return a.date.localeCompare(b.date);
 }
-export function lock() {
-  localStorage.removeItem(LOCK_KEY);
+
+// ----------- Auth -----------
+export async function isUnlocked() {
+  const { data } = await sb.auth.getSession();
+  return !!data.session;
+}
+
+/** Sign in with email + password. Returns { ok: true } or { ok: false, error }. */
+export async function signIn(email, password) {
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) return { ok: false, error: error.message };
+  store.unlocked = true;
+  store.user = { id: data.user.id, email: data.user.email };
+  return { ok: true };
+}
+
+export async function signOut() {
+  await sb.auth.signOut();
   store.unlocked = false;
+  store.user = null;
   store.flights = [];
   store.airports = new Map();
   store.ready = false;
@@ -60,25 +73,25 @@ async function fetchAll(table, orderCol = null) {
 }
 
 export async function loadAll() {
-  if (!store.unlocked) return;
   const [flights, airports] = await Promise.all([
     fetchAll('flights', 'date'),
     fetchAll('airports'),
-    loadLogos(),  // load airline logos in parallel
+    loadLogos(),
   ]);
+  flights.sort(flightDateCompare);
   store.flights = flights;
   store.airports = new Map(airports.map(a => [a.iata, a]));
   store.ready = true;
   emit({ type: 'data:loaded', counts: { flights: store.flights.length, airports: store.airports.size } });
 }
 
-// ----------- CRUD -----------
+// ----------- CRUD: flights -----------
 export async function addFlight(flight) {
   const row = computeDistance(flight);
   const { data, error } = await sb.from('flights').insert(row).select().single();
   if (error) throw error;
   store.flights.push(data);
-  store.flights.sort((a, b) => a.date.localeCompare(b.date));
+  store.flights.sort(flightDateCompare);
   emit({ type: 'data:changed', kind: 'add', row: data });
   return data;
 }
@@ -104,9 +117,8 @@ export async function deleteFlight(id) {
   emit({ type: 'data:changed', kind: 'delete', id });
 }
 
-// ----------- Airport CRUD -----------
+// ----------- CRUD: airports -----------
 export async function addAirport(airport) {
-  // airport must have: iata, name, city, country, lat, lon, optionally icao
   const { data, error } = await sb.from('airports').insert(airport).select().single();
   if (error) throw error;
   store.airports.set(data.iata, data);
@@ -117,7 +129,6 @@ export async function addAirport(airport) {
 export async function updateAirport(iata, patch) {
   const { data, error } = await sb.from('airports').update(patch).eq('iata', iata).select().single();
   if (error) throw error;
-  // If the IATA changed, the old key needs deleting (rare — usually you just edit name/city/coords)
   if (patch.iata && patch.iata !== iata) {
     store.airports.delete(iata);
   }
@@ -161,35 +172,70 @@ export function uniqueAircraft() {
   for (const f of store.flights) if (f.aircraft) set.add(f.aircraft);
   return [...set].sort();
 }
+
+/**
+ * Search airports by IATA code, city, or name. Linear scan over the in-memory
+ * Map — with ~8k airports it's well under a millisecond.
+ *
+ * Sorting priority: exact IATA → IATA-prefix → city-prefix → alphabetical.
+ */
 export function searchAirports(query) {
   if (!query) return [];
   const q = query.toLowerCase().trim();
-  const out = [];
+  const candidates = [];
   for (const a of store.airports.values()) {
-    if (
-      a.iata.toLowerCase().includes(q) ||
-      a.city.toLowerCase().includes(q) ||
-      (a.name || '').toLowerCase().includes(q)
-    ) out.push(a);
-    if (out.length >= 30) break;
+    const iata = a.iata.toLowerCase();
+    const city = (a.city || '').toLowerCase();
+    const name = (a.name || '').toLowerCase();
+    if (iata.includes(q) || city.includes(q) || name.includes(q)) {
+      candidates.push(a);
+    }
   }
-  out.sort((a, b) => {
-    const aExact = a.iata.toLowerCase() === q ? 0 : 1;
-    const bExact = b.iata.toLowerCase() === q ? 0 : 1;
+  candidates.sort((a, b) => {
+    const aIata = a.iata.toLowerCase();
+    const bIata = b.iata.toLowerCase();
+    const aCity = (a.city || '').toLowerCase();
+    const bCity = (b.city || '').toLowerCase();
+    // 1. Exact IATA match wins
+    const aExact = aIata === q ? 0 : 1;
+    const bExact = bIata === q ? 0 : 1;
     if (aExact !== bExact) return aExact - bExact;
-    const aCity = a.city.toLowerCase().startsWith(q) ? 0 : 1;
-    const bCity = b.city.toLowerCase().startsWith(q) ? 0 : 1;
-    if (aCity !== bCity) return aCity - bCity;
-    return a.city.localeCompare(b.city);
+    // 2. IATA prefix
+    const aIataPre = aIata.startsWith(q) ? 0 : 1;
+    const bIataPre = bIata.startsWith(q) ? 0 : 1;
+    if (aIataPre !== bIataPre) return aIataPre - bIataPre;
+    // 3. City prefix
+    const aCityPre = aCity.startsWith(q) ? 0 : 1;
+    const bCityPre = bCity.startsWith(q) ? 0 : 1;
+    if (aCityPre !== bCityPre) return aCityPre - bCityPre;
+    // 4. Alphabetical by city
+    return aCity.localeCompare(bCity);
   });
-  return out.slice(0, 10);
+  return candidates.slice(0, 10);
 }
 
 // ----------- Bootstrap -----------
 (async function init() {
-  if (isUnlocked()) {
+  const { data } = await sb.auth.getSession();
+  if (data.session) {
     store.unlocked = true;
-    await loadAll();
+    store.user = { id: data.session.user.id, email: data.session.user.email };
+    try {
+      await loadAll();
+    } catch (e) {
+      console.error('Initial load failed:', e);
+    }
   }
+  // Cross-tab / external sign-in/out
+  sb.auth.onAuthStateChange((_evt, session) => {
+    if (session && !store.unlocked) {
+      store.unlocked = true;
+      store.user = { id: session.user.id, email: session.user.email };
+    } else if (!session && store.unlocked) {
+      store.unlocked = false;
+      store.user = null;
+      emit({ type: 'auth:locked' });
+    }
+  });
   emit({ type: 'init:done', unlocked: store.unlocked });
 })();

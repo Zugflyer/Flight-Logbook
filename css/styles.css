@@ -1197,3 +1197,66 @@ button.ghost.danger:hover { color: var(--danger); border-color: var(--danger); b
   .flight-modal { min-width: 0; width: 100%; max-width: calc(100vw - 32px); }
   .field-row { flex-direction: column; gap: 12px; }
 }
+
+/* ============================================================================
+ * Historic (Pre-2012) flights — italics + greyed out, distinguishable from
+ * dated flights at a glance. Excluded from statistics, included on map.
+ * ============================================================================ */
+.tr.historic {
+  font-style: italic;
+  font-family: 'Inter', system-ui, sans-serif;  /* same family but italic kicks in */
+  color: var(--fg-2);
+  background: linear-gradient(0deg, var(--bg-2), var(--bg-2));  /* faint tint */
+}
+.tr.historic:hover {
+  background: var(--bg-2);
+}
+.tr.historic .route-iata,
+.tr.historic .route-city,
+.tr.historic .eqp-code,
+.tr.historic .col-distance,
+.tr.historic .col-tier {
+  color: var(--fg-2);
+}
+.tr.historic .airline-logo {
+  opacity: 0.7;
+}
+.tr.historic .airline-chip {
+  color: var(--fg-2);
+  border-color: var(--fg-3);
+  background: transparent;
+}
+.tr.historic .cabin-pill {
+  opacity: 0.7;
+}
+/* Special date cell for historic flights: replaces the date with a label */
+.date-historic {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--fg-2);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+/* Historic checkbox row in the add/edit modal */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  background: var(--bg-2);
+  border: 1px solid var(--accent-line, #d6e4f5);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--fg-1);
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-row input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+.checkbox-row:hover {
+  background: var(--bg-1);
+}

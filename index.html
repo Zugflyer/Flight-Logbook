@@ -36,7 +36,7 @@
       <button data-tab="status">Status</button>
     </nav>
     <div class="actions">
-      <button id="auth-btn" class="ghost">Unlock</button>
+      <button id="auth-btn" class="ghost">Sign in</button>
       <button id="settings-btn" class="ghost" aria-label="Settings">⚙</button>
     </div>
   </header>
@@ -58,13 +58,14 @@
     </section>
   </main>
 
-  <!-- Password gate modal -->
+  <!-- Sign-in modal -->
   <div id="auth-modal" class="modal hidden">
     <div class="modal-card">
-      <h2>Unlock</h2>
-      <p class="muted">Enter your password to access the flight log.</p>
+      <h2>Sign in</h2>
+      <p class="muted">Enter your email and password to unlock the flight log.</p>
+      <input type="email" id="auth-email" placeholder="Email" autocomplete="email">
       <input type="password" id="auth-pwd" placeholder="Password" autocomplete="current-password">
-      <button id="auth-submit" class="primary">Unlock</button>
+      <button id="auth-submit" class="primary">Sign in</button>
       <p id="auth-msg" class="muted small"></p>
     </div>
   </div>
@@ -81,7 +82,7 @@
         </select>
       </label>
       <button class="ghost" id="manage-airports-btn">Manage airports…</button>
-      <button class="ghost" id="lock-btn">Lock this device</button>
+      <button class="ghost" id="lock-btn">Sign out</button>
       <button class="primary" id="settings-close">Done</button>
     </div>
   </div>

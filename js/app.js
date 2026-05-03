@@ -3,7 +3,7 @@
 // Tabs, password gate, settings, log module.
 // ============================================================================
 
-import { store, onChange, isUnlocked, tryUnlock, lock, loadAll } from './data.js';
+import { store, onChange, signIn, signOut, loadAll } from './data.js';
 import { DEFAULTS } from './config.js';
 import { initLog, openManageAirports } from './log.js';
 import { initStats } from './stats.js';
@@ -42,13 +42,17 @@ function hideBanner() { banner.classList.add('hidden'); }
 // ---------- Password gate modal ----------
 const authModal = document.getElementById('auth-modal');
 const authBtn = document.getElementById('auth-btn');
+const authEmail = document.getElementById('auth-email');
 const authPwd = document.getElementById('auth-pwd');
 const authSubmit = document.getElementById('auth-submit');
 const authMsg = document.getElementById('auth-msg');
 
 function openAuthModal() {
   authModal.classList.remove('hidden');
-  setTimeout(() => authPwd.focus(), 50);
+  setTimeout(() => {
+    // Focus email if empty, otherwise password
+    (authEmail.value ? authPwd : authEmail).focus();
+  }, 50);
 }
 function closeAuthModal() {
   authModal.classList.add('hidden');
@@ -65,26 +69,34 @@ authBtn.addEventListener('click', () => {
 });
 
 async function handleUnlock() {
-  const pw = authPwd.value;
-  if (!tryUnlock(pw)) {
-    authMsg.textContent = 'Wrong password.';
-    authPwd.select();
+  const email = authEmail.value.trim();
+  const password = authPwd.value;
+  if (!email || !password) {
+    authMsg.textContent = 'Email and password are required.';
     return;
   }
-  authMsg.textContent = 'Loading…';
+  authMsg.textContent = 'Signing in…';
   authSubmit.disabled = true;
   try {
+    const result = await signIn(email, password);
+    if (!result.ok) {
+      authMsg.textContent = result.error || 'Sign-in failed.';
+      authPwd.select();
+      return;
+    }
+    authMsg.textContent = 'Loading…';
     await loadAll();
     closeAuthModal();
     reflectAuth();
   } catch (e) {
-    authMsg.textContent = 'Error loading data: ' + (e.message || e);
+    authMsg.textContent = 'Error: ' + (e.message || e);
   } finally {
     authSubmit.disabled = false;
   }
 }
 authSubmit.addEventListener('click', handleUnlock);
 authPwd.addEventListener('keydown', e => { if (e.key === 'Enter') handleUnlock(); });
+authEmail.addEventListener('keydown', e => { if (e.key === 'Enter') authPwd.focus(); });
 
 // ---------- Settings modal ----------
 const settingsModal = document.getElementById('settings-modal');
@@ -101,8 +113,8 @@ unitSelect.addEventListener('change', () => {
   saveSettings(settings);
   window.dispatchEvent(new CustomEvent('flightlog:settings-changed'));
 });
-lockBtn.addEventListener('click', () => {
-  lock();
+lockBtn.addEventListener('click', async () => {
+  await signOut();
   settingsModal.classList.add('hidden');
   reflectAuth();
   openAuthModal();
@@ -117,11 +129,11 @@ manageAirportsBtn.addEventListener('click', () => {
 // ---------- Auth state reflection ----------
 function reflectAuth() {
   if (store.unlocked) {
-    authBtn.textContent = 'Unlocked';
+    authBtn.textContent = 'Signed in';
     authBtn.classList.add('unlocked');
     authModal.classList.add('hidden');
   } else {
-    authBtn.textContent = 'Unlock';
+    authBtn.textContent = 'Sign in';
     authBtn.classList.remove('unlocked');
   }
 }
@@ -131,7 +143,7 @@ onChange(evt => {
   if (evt.type === 'init:done') {
     reflectAuth();
     if (!store.unlocked) {
-      showBanner('Locked. Click "Unlock" to view your flights.');
+      showBanner('Sign in to view your flights.');
       openAuthModal();
     }
   }
@@ -140,7 +152,7 @@ onChange(evt => {
     setTimeout(hideBanner, 2500);
   }
   if (evt.type === 'auth:locked') {
-    showBanner('Locked.');
+    showBanner('Signed out.');
   }
 });
 

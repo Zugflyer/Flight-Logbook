@@ -8,6 +8,7 @@ import {
   store, onChange, addFlight, updateFlight, deleteFlight,
   uniqueAirlines, uniqueAircraft, searchAirports,
   addAirport, updateAirport, deleteAirport,
+  isHistoric,
 } from './data.js';
 import { settings } from './app.js';
 import { aircraftCode, fullNameFromIcao, isKnownIcao, knownIcaoCodes } from './aircraft.js';
@@ -156,10 +157,15 @@ function wireScroll() {
 
 function populateFilterOptions() {
   const years = new Set();
-  for (const f of store.flights) years.add(f.date.slice(0, 4));
+  let hasHistoric = false;
+  for (const f of store.flights) {
+    if (isHistoric(f)) { hasHistoric = true; continue; }
+    if (f.date) years.add(f.date.slice(0, 4));
+  }
   const $year = document.getElementById('f-year');
-  $year.innerHTML = `<option value="all">All years</option>` +
-    [...years].sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
+  const yearOptions = [...years].sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
+  const historicOption = hasHistoric ? `<option value="historic">Pre-2012</option>` : '';
+  $year.innerHTML = `<option value="all">All years</option>${yearOptions}${historicOption}`;
   $year.value = filters.year;
 
   const $airline = document.getElementById('f-airline');
@@ -173,7 +179,11 @@ function populateFilterOptions() {
 // ============================================================
 function applyFilters() {
   let rows = store.flights;
-  if (filters.year !== 'all') rows = rows.filter(f => f.date.startsWith(filters.year));
+  if (filters.year === 'historic') {
+    rows = rows.filter(isHistoric);
+  } else if (filters.year !== 'all') {
+    rows = rows.filter(f => !isHistoric(f) && f.date && f.date.startsWith(filters.year));
+  }
   if (filters.airline !== 'all') rows = rows.filter(f => f.airline === filters.airline);
   if (filters.cabin !== 'all') rows = rows.filter(f => f.cabin === filters.cabin);
   if (filters.search) {
@@ -181,7 +191,9 @@ function applyFilters() {
     rows = rows.filter(f => {
       const fromA = store.airports.get(f.from_iata);
       const toA = store.airports.get(f.to_iata);
+      const historicMatch = isHistoric(f) && ('pre-2012'.includes(q) || 'historic'.includes(q));
       return (
+        historicMatch ||
         f.from_iata?.toLowerCase().includes(q) ||
         f.to_iata?.toLowerCase().includes(q) ||
         f.airline?.toLowerCase().includes(q) ||
@@ -199,9 +211,17 @@ function applyFilters() {
   const mul = dir === 'asc' ? 1 : -1;
   const distKey = settings.unit === 'mi' ? 'distance_mi' : 'distance_km';
   const cmp = (a, b) => {
+    // Historic flights have no date — when sorting by date, they're treated
+    // as older than any dated flight (sort to the "oldest" end).
+    if (col === 'date') {
+      const ah = isHistoric(a), bh = isHistoric(b);
+      if (ah && bh) return 0;
+      if (ah) return -1 * mul;
+      if (bh) return 1 * mul;
+      return a.date.localeCompare(b.date) * mul;
+    }
     let av, bv;
-    if (col === 'date')          { av = a.date; bv = b.date; }
-    else if (col === 'route')    { av = a.from_iata + a.to_iata; bv = b.from_iata + b.to_iata; }
+    if (col === 'route')         { av = a.from_iata + a.to_iata; bv = b.from_iata + b.to_iata; }
     else if (col === 'distance') { av = a[distKey] || 0; bv = b[distKey] || 0; }
     else if (col === 'aircraft') { av = aircraftCode(a.aircraft); bv = aircraftCode(b.aircraft); }
     else                         { av = a[col] || ''; bv = b[col] || ''; }
@@ -273,9 +293,14 @@ function rowHtml(f) {
   const toCity   = toA?.city   || f.to_iata;
   const dist = settings.unit === 'mi' ? f.distance_mi : f.distance_km;
   const flashClass = f.id === lastFlash ? ' flash' : '';
+  const historicClass = isHistoric(f) ? ' historic' : '';
   const eqp = aircraftCode(f.aircraft);
+  const dateCell = isHistoric(f)
+    ? `<div class="date-historic">Pre-2012</div>`
+    : `<div class="date-main">${formatDate(f.date)}</div>
+       <div class="date-sub">${f.date.slice(0, 4)}</div>`;
   return `
-    <div class="tr${flashClass}" data-id="${f.id}" style="height:${ROW_HEIGHT}px">
+    <div class="tr${flashClass}${historicClass}" data-id="${f.id}" style="height:${ROW_HEIGHT}px">
       <div class="td col-logo">${airlineLogoHtml(f.airline)}</div>
       <div class="td col-eqp"><span class="eqp-code">${escapeHtml(eqp || '—')}</span></div>
       <div class="td col-route">
@@ -285,10 +310,7 @@ function rowHtml(f) {
       <div class="td col-distance">${dist ? Math.round(dist).toLocaleString() : '—'}</div>
       <div class="td col-cabin">${cabinPill(f.cabin)}</div>
       <div class="td col-tier">${f.tier_miles?.toLocaleString() || '—'}</div>
-      <div class="td col-date">
-        <div class="date-main">${formatDate(f.date)}</div>
-        <div class="date-sub">${f.date.slice(0, 4)}</div>
-      </div>
+      <div class="td col-date">${dateCell}</div>
     </div>
   `;
 }
@@ -347,17 +369,31 @@ export function openManageAirports() {
 
   function renderList() {
     const q = $search.value.toLowerCase().trim();
-    let rows = [...store.airports.values()];
+    let rows;
+    let modeLabel;
     if (q) {
-      rows = rows.filter(a =>
+      // Searching: scan the entire airport database
+      rows = [...store.airports.values()].filter(a =>
         a.iata.toLowerCase().includes(q) ||
-        a.city.toLowerCase().includes(q) ||
+        (a.city || '').toLowerCase().includes(q) ||
         (a.name || '').toLowerCase().includes(q) ||
         (a.country || '').toLowerCase().includes(q)
       );
+      modeLabel = `${rows.length.toLocaleString()} match${rows.length === 1 ? '' : 'es'} of ${store.airports.size.toLocaleString()} airports`;
+    } else {
+      // No search: show only airports actually used in your flights, so the
+      // 8k-row global database doesn't overwhelm the list. Use the search
+      // box to find any airport.
+      const usedIatas = new Set();
+      for (const f of store.flights) {
+        if (f.from_iata) usedIatas.add(f.from_iata);
+        if (f.to_iata) usedIatas.add(f.to_iata);
+      }
+      rows = [...store.airports.values()].filter(a => usedIatas.has(a.iata));
+      modeLabel = `${rows.length.toLocaleString()} airports you've flown to · ${store.airports.size.toLocaleString()} in total — search to find any`;
     }
     rows.sort((a, b) => a.iata.localeCompare(b.iata));
-    $count.textContent = `${rows.length.toLocaleString()} of ${store.airports.size.toLocaleString()} airports`;
+    $count.textContent = modeLabel;
     if (!rows.length) {
       $list.innerHTML = `<div class="ma-empty">No matches.</div>`;
       return;
@@ -365,9 +401,9 @@ export function openManageAirports() {
     $list.innerHTML = rows.map(a => `
       <div class="ma-row" data-iata="${a.iata}">
         <span class="ma-iata">${a.iata}</span>
-        <span class="ma-city">${escapeHtml(a.city)}</span>
+        <span class="ma-city">${escapeHtml(a.city || '')}</span>
         <span class="ma-country">${escapeHtml(a.country || '')}</span>
-        <span class="ma-name">${escapeHtml(a.name)}</span>
+        <span class="ma-name">${escapeHtml(a.name || '')}</span>
       </div>
     `).join('');
     $list.querySelectorAll('.ma-row').forEach(el => {
@@ -547,8 +583,10 @@ function openModal(flightId) {
     from_iata: '', to_iata: '',
     airline: '', aircraft: '', cabin: 'Economy',
     tier_miles: '', notes: '',
+    is_historic: false,
   };
   if (isEdit && !f) return;
+  const startsHistoric = isEdit ? isHistoric(f) : false;
 
   const wrap = document.createElement('div');
   wrap.className = 'modal';
@@ -559,9 +597,13 @@ function openModal(flightId) {
         <button class="ghost icon-only" id="m-close" aria-label="Close">×</button>
       </header>
       <div class="modal-body">
-        <div class="field">
+        <label class="checkbox-row">
+          <input type="checkbox" id="m-historic" ${startsHistoric ? 'checked' : ''}>
+          <span>Historic flight (Pre-2012, no date)</span>
+        </label>
+        <div class="field" id="m-date-field" ${startsHistoric ? 'hidden' : ''}>
           <label>Date</label>
-          <input type="date" id="m-date" value="${f.date}">
+          <input type="date" id="m-date" value="${startsHistoric ? '' : (f.date || '')}">
         </div>
         <div class="field-row">
           <div class="field">
@@ -630,6 +672,13 @@ function openModal(flightId) {
   setupAutocomplete('m-to',   'ac-to');
   setupAircraftInput(wrap);
 
+  // Wire the historic checkbox: hide/show the date field
+  const $historic = wrap.querySelector('#m-historic');
+  const $dateField = wrap.querySelector('#m-date-field');
+  $historic.addEventListener('change', () => {
+    $dateField.hidden = $historic.checked;
+  });
+
   const close = () => wrap.remove();
   wrap.querySelector('#m-close').addEventListener('click', close);
   wrap.querySelector('#m-cancel').addEventListener('click', close);
@@ -640,7 +689,8 @@ function openModal(flightId) {
   wrap.querySelector('#m-save').addEventListener('click', async () => {
     const $err = wrap.querySelector('#m-error');
     $err.textContent = '';
-    const date = wrap.querySelector('#m-date').value;
+    const is_historic = wrap.querySelector('#m-historic').checked;
+    const date = is_historic ? null : wrap.querySelector('#m-date').value;
     const from_iata = wrap.querySelector('#m-from').dataset.iata;
     const to_iata = wrap.querySelector('#m-to').dataset.iata;
     const airline = wrap.querySelector('#m-airline').value.trim() || null;
@@ -655,8 +705,12 @@ function openModal(flightId) {
     const tier_miles = tierStr === '' ? null : parseInt(tierStr, 10);
     const notes = wrap.querySelector('#m-notes').value.trim() || null;
 
-    if (!date || !from_iata || !to_iata) {
-      $err.textContent = 'Date, From and To are required.';
+    if (!is_historic && !date) {
+      $err.textContent = 'Date is required (or check Historic flight).';
+      return;
+    }
+    if (!from_iata || !to_iata) {
+      $err.textContent = 'From and To are required.';
       return;
     }
     if (from_iata === to_iata) {
@@ -666,11 +720,12 @@ function openModal(flightId) {
 
     wrap.querySelector('#m-save').disabled = true;
     try {
+      const payload = { date, from_iata, to_iata, airline, aircraft, cabin, tier_miles, notes, is_historic };
       let saved;
       if (isEdit) {
-        saved = await updateFlight(flightId, { date, from_iata, to_iata, airline, aircraft, cabin, tier_miles, notes });
+        saved = await updateFlight(flightId, payload);
       } else {
-        saved = await addFlight({ date, from_iata, to_iata, airline, aircraft, cabin, tier_miles, notes });
+        saved = await addFlight(payload);
       }
       lastFlash = saved.id;
       setTimeout(() => { lastFlash = null; render(); }, 1500);
@@ -683,7 +738,8 @@ function openModal(flightId) {
 
   if (isEdit) {
     wrap.querySelector('#m-delete').addEventListener('click', async () => {
-      if (!confirm(`Delete this flight (${f.date} ${f.from_iata}→${f.to_iata})?`)) return;
+      const dateLabel = isHistoric(f) ? 'Pre-2012' : f.date;
+      if (!confirm(`Delete this flight (${dateLabel} ${f.from_iata}→${f.to_iata})?`)) return;
       try {
         await deleteFlight(flightId);
         close();
@@ -693,7 +749,12 @@ function openModal(flightId) {
     });
   }
 
-  setTimeout(() => wrap.querySelector('#m-date').focus(), 0);
+  setTimeout(() => {
+    const focusEl = startsHistoric
+      ? wrap.querySelector('#m-from')
+      : wrap.querySelector('#m-date');
+    focusEl?.focus();
+  }, 0);
 }
 
 // ============================================================

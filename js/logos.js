@@ -8,11 +8,7 @@
 // go straight to Supabase + the in-memory map; no need to refetch.
 // ============================================================================
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
+import { sb } from './sb.js';
 
 const BUCKET = 'airline-logos';
 
