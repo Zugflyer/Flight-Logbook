@@ -9,6 +9,7 @@ import { initLog, openManageAirports } from './log.js';
 import { initStats } from './stats.js';
 import { initMap } from './map.js';
 import { initStatus } from './status.js';
+import { initEurostar } from './eurostar.js';
 
 // ---------- Settings (localStorage-backed) ----------
 const SETTINGS_KEY = 'flightlog.settings.v1';
@@ -20,15 +21,28 @@ function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
 export const settings = loadSettings();
 
 // ---------- Tabs ----------
-const tabs = document.getElementById('tabs');
 const panels = document.getElementById('panels');
-tabs.addEventListener('click', e => {
-  const btn = e.target.closest('button[data-tab]');
-  if (!btn) return;
-  const target = btn.dataset.tab;
-  for (const b of tabs.querySelectorAll('button')) b.classList.toggle('active', b === btn);
-  for (const p of panels.querySelectorAll('.panel'))
+
+/**
+ * Switch to the given tab. Updates the .active class on every [data-tab]
+ * button anywhere in the document (so the Eurostar logo can also act as
+ * a tab trigger) and on every .panel.
+ */
+function selectTab(target) {
+  for (const b of document.querySelectorAll('[data-tab]')) {
+    b.classList.toggle('active', b.dataset.tab === target);
+  }
+  for (const p of panels.querySelectorAll('.panel')) {
     p.classList.toggle('active', p.dataset.panel === target);
+  }
+}
+
+// Delegate clicks on any [data-tab] element to selectTab. This handles the
+// tabs in the left header box AND the Eurostar logo button in the right one.
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-tab]');
+  if (!btn) return;
+  selectTab(btn.dataset.tab);
 });
 
 // ---------- Banner ----------
@@ -162,3 +176,4 @@ initLog();
 initStats();
 initMap();
 initStatus();
+initEurostar();

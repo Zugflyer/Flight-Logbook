@@ -14,8 +14,9 @@ export const store = {
   flights: [],
   airports: new Map(),
   ready: false,
-  user: null,  // { id, email } or null
-  programAdjustments: new Map(),  // program_id -> { rollover, ... }
+  user: null,
+  programAdjustments: new Map(),
+  eurostarTrips: [],
 };
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit(evt) { for (const fn of listeners) fn(evt); }
@@ -54,6 +55,7 @@ export async function signOut() {
   store.flights = [];
   store.airports = new Map();
   store.programAdjustments = new Map();
+  store.eurostarTrips = [];
   store.ready = false;
   emit({ type: 'auth:locked' });
 }
@@ -75,16 +77,20 @@ async function fetchAll(table, orderCol = null) {
 }
 
 export async function loadAll() {
-  const [flights, airports, adjustments] = await Promise.all([
+  const [flights, airports, adjustments, eurostarTrips] = await Promise.all([
     fetchAll('flights', 'date'),
     fetchAll('airports'),
     fetchAll('program_adjustments'),
+    fetchAll('eurostar_trips', 'date'),
     loadLogos(),
   ]);
   flights.sort(flightDateCompare);
   store.flights = flights;
   store.airports = new Map(airports.map(a => [a.iata, a]));
   store.programAdjustments = new Map(adjustments.map(r => [r.program_id, r]));
+  // Eurostar: newest first by default (matches the page's display order)
+  eurostarTrips.sort((a, b) => b.date.localeCompare(a.date));
+  store.eurostarTrips = eurostarTrips;
   store.ready = true;
   emit({ type: 'data:loaded', counts: { flights: store.flights.length, airports: store.airports.size } });
 }
@@ -146,6 +152,35 @@ export async function deleteAirport(iata) {
   if (error) throw error;
   store.airports.delete(iata);
   emit({ type: 'airports:changed', kind: 'delete', iata });
+}
+
+// ----------- CRUD: eurostar_trips -----------
+export async function addEurostarTrip(trip) {
+  const { data, error } = await sb.from('eurostar_trips').insert(trip).select().single();
+  if (error) throw error;
+  store.eurostarTrips.push(data);
+  store.eurostarTrips.sort((a, b) => b.date.localeCompare(a.date));
+  emit({ type: 'eurostar:changed', kind: 'add', row: data });
+  return data;
+}
+
+export async function updateEurostarTrip(id, patch) {
+  const { data, error } = await sb.from('eurostar_trips')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) throw error;
+  const idx = store.eurostarTrips.findIndex(t => t.id === id);
+  if (idx >= 0) store.eurostarTrips[idx] = data;
+  store.eurostarTrips.sort((a, b) => b.date.localeCompare(a.date));
+  emit({ type: 'eurostar:changed', kind: 'update', row: data });
+  return data;
+}
+
+export async function deleteEurostarTrip(id) {
+  const { error } = await sb.from('eurostar_trips').delete().eq('id', id);
+  if (error) throw error;
+  store.eurostarTrips = store.eurostarTrips.filter(t => t.id !== id);
+  emit({ type: 'eurostar:changed', kind: 'delete', id });
 }
 
 // ----------- Program adjustments (manual corrections, qualification windows) -----------

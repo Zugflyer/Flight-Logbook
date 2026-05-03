@@ -1682,3 +1682,183 @@ button.ghost.small {
   margin: 4px 0 0;
   line-height: 1.4;
 }
+
+/* ============================================================================
+ * Eurostar tab — trip log on left half, future content on right half
+ * ============================================================================ */
+
+/* Make the Eurostar logo behave as a tab trigger */
+.loyalty-logo-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: background 120ms, border-color 120ms;
+}
+.loyalty-logo-btn:hover {
+  background: var(--bg-2);
+  border-color: var(--accent-line);
+}
+.loyalty-logo-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+/* Page layout: left half = trips, right half = reserved */
+.eurostar-root {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 24px 32px 48px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+.eurostar-left,
+.eurostar-right {
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  min-height: 500px;
+}
+.eurostar-left { display: flex; flex-direction: column; }
+
+.eurostar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--bg-2);
+}
+.eurostar-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--fg-0);
+  letter-spacing: -0.01em;
+}
+.eurostar-summary {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.eurostar-table-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.eurostar-thead {
+  display: grid;
+  grid-template-columns: 130px 1fr 90px 50px;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--accent-line);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.es-th { display: flex; align-items: center; }
+.es-col-points { justify-content: flex-end; }
+.es-col-actions { justify-content: flex-end; }
+
+.eurostar-tbody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px;
+}
+.es-tr {
+  display: grid;
+  grid-template-columns: 130px 1fr 90px 50px;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bg-2);
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.es-tr:hover { background: var(--bg-2); }
+.es-td { display: flex; align-items: center; }
+
+.es-col-date {
+  flex-direction: column;
+  align-items: flex-start;
+}
+.es-date-main {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-0);
+}
+.es-date-sub {
+  font-size: 11px;
+  color: var(--fg-3);
+  font-style: italic;
+  text-transform: capitalize;
+  margin-top: 1px;
+}
+
+.es-col-route {
+  font-size: 14px;
+  color: var(--fg-1);
+}
+.es-from, .es-to { font-weight: 500; }
+.es-arrow {
+  color: var(--fg-3);
+  margin: 0 8px;
+  font-weight: 400;
+}
+
+.es-col-points {
+  justify-content: flex-end;
+  font-weight: 600;
+  color: var(--accent);
+  font-size: 14px;
+}
+
+.es-col-actions { justify-content: flex-end; }
+.es-action-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-3);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.es-action-btn:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+
+.eurostar-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--fg-3);
+  font-style: italic;
+}
+
+.eurostar-modal { max-width: 460px; }
+
+/* Stack the two halves on narrow screens */
+@media (max-width: 900px) {
+  .eurostar-root {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .eurostar-thead,
+  .es-tr {
+    grid-template-columns: 110px 1fr 70px 40px;
+  }
+}
