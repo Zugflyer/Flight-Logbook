@@ -8,7 +8,7 @@
 //      progress vs target, percentage at the right = pace ratio.
 // ============================================================================
 
-import { store, onChange, isHistoric, setProgramRollover } from './data.js';
+import { store, onChange, isHistoric, setProgramAdjustment } from './data.js';
 
 // ---------- Program definitions ----------
 // Logos live in assets/logos/. Files are PNGs (despite the original SVG
@@ -20,11 +20,10 @@ const PROGRAMS = [
     alliance: 'SkyTeam',
     allianceLogo: 'assets/logos/skyteam.png',
     airlineLogo: 'assets/logos/airfrance.png',
-    accent: '#002157',                       // Air France navy
+    accent: '#002157',
     accentSoft: '#e6ecf5',
     targets: [900, 1850],
     airlines: ['AF', 'KL'],
-    rolloverEnabled: true,                   // shows "+" button by the top target
   },
   {
     id: 'ay',
@@ -35,7 +34,7 @@ const PROGRAMS = [
     accent: '#0a4ea4',
     accentSoft: '#e7f0fa',
     targets: [57500],
-    extendedScale: 80000,                    // visual axis extends past target
+    extendedScale: 80000,
     airlines: ['BA', 'IB', 'AY', 'AA', 'CX', 'AT', 'JL'],
   },
   {
@@ -44,7 +43,7 @@ const PROGRAMS = [
     alliance: 'Star Alliance',
     allianceLogo: 'assets/logos/staralliance.png',
     airlineLogo: 'assets/logos/swiss.png',
-    accent: '#cc0000',                       // Swiss red
+    accent: '#cc0000',
     accentSoft: '#fde8e8',
     targets: [6000],
     airlines: ['LX', 'LH', 'SN', 'OS', 'EW', 'LG', 'AZ', 'EN'],
@@ -74,9 +73,7 @@ export function initStatus() {
             <div class="status-card">
               <div class="status-card-label">
                 <span>Tier points <span class="status-year" id="status-year-${p.id}"></span></span>
-                ${p.rolloverEnabled ? `
-                  <button class="rollover-btn" data-program="${p.id}" aria-label="Set rollover miles" title="Set rollover miles">+</button>
-                ` : ''}
+                <button class="rollover-btn" data-program="${p.id}" aria-label="Manual balance correction" title="Manual balance correction">+</button>
               </div>
               <div class="tp-bar" id="tp-bar-${p.id}"></div>
               <div class="tp-axis" id="tp-axis-${p.id}"></div>
@@ -125,36 +122,73 @@ export function initStatus() {
 // ============================================================
 function render() {
   const now = new Date();
-  const year = now.getFullYear();
-  const yearProgress = computeYearProgress(now);
 
   for (const p of PROGRAMS) {
-    const b = computeBalance(p, year);
+    const window = computeWindow(p, now);
+    const windowProgress = computeWindowProgress(window, now);
+    const b = computeBalance(p, window);
+
     renderTierBar(p, b.total);
-    renderPaceBar(p, b.total, yearProgress);
-    renderBreakdown(p, b);
+    renderPaceBar(p, b.total, windowProgress, window);
+    renderBreakdown(p, b, window);
 
     const $year = document.getElementById(`status-year-${p.id}`);
-    if ($year) $year.textContent = year;
+    if ($year) $year.textContent = window.label;
 
     const $note = document.getElementById(`tp-rollover-${p.id}`);
-    if ($note && p.rolloverEnabled) {
-      $note.textContent = b.rollover > 0 ? `Includes ${fmt(b.rollover)} rollover miles` : '';
+    if ($note) {
+      if (b.correction > 0) {
+        $note.textContent = `Includes ${fmt(b.correction)} manual correction`;
+      } else if (b.correction < 0) {
+        $note.textContent = `Includes ${fmt(b.correction)} manual correction`;
+      } else {
+        $note.textContent = '';
+      }
     }
   }
 }
 
+// ---------- Qualification window ----------
+// Returns { start: Date, end: Date, label: string } describing the period
+// over which flights count. If the program has a `qualification_start` set
+// in adjustments, the window is [start, start+365). Otherwise it's the
+// current calendar year.
+function computeWindow(program, now) {
+  const adj = store.programAdjustments?.get(program.id);
+  const qs = adj?.qualification_start;
+  if (qs) {
+    const start = new Date(qs + 'T00:00:00');
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + 1);
+    return { start, end, custom: true, label: formatWindowLabel(start, end) };
+  }
+  const year = now.getFullYear();
+  const start = new Date(year, 0, 1);
+  const end = new Date(year + 1, 0, 1);
+  return { start, end, custom: false, label: String(year) };
+}
+
+function formatWindowLabel(start, end) {
+  // End is exclusive (start + 365 days). Show end-1 for human readability:
+  // "Aug 15 2025 – Aug 14 2026"
+  const endInclusive = new Date(end);
+  endInclusive.setDate(endInclusive.getDate() - 1);
+  const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${fmt(start)} – ${fmt(endInclusive)}`;
+}
+
 // ---------- Balance ----------
-// Returns { total, contributions, rollover } where contributions is the list
-// of flights that summed into the total, in date order. Useful for the
-// debug breakdown panel.
-function computeBalance(program, year) {
+function computeBalance(program, window) {
   const allowed = new Set(program.airlines.map(a => a.toUpperCase()));
   const contributions = [];
   let sum = 0;
+  // Compare flight dates as 'YYYY-MM-DD' strings (string compare works for
+  // ISO dates and avoids timezone issues from Date parsing).
+  const startStr = isoDate(window.start);
+  const endStr = isoDate(window.end);  // exclusive
   for (const f of store.flights) {
     if (isHistoric(f) || !f.date) continue;
-    if (f.date.slice(0, 4) !== String(year)) continue;
+    if (f.date < startStr || f.date >= endStr) continue;
     if (!f.airline) continue;
     if (!allowed.has(f.airline.toUpperCase())) continue;
     if (f.tier_miles == null) continue;
@@ -163,16 +197,22 @@ function computeBalance(program, year) {
     contributions.push({ flight: f, miles });
   }
   const adj = store.programAdjustments?.get(program.id);
-  const rollover = (adj && Number.isFinite(adj.rollover)) ? adj.rollover : 0;
-  return { total: sum + rollover, fromFlights: sum, contributions, rollover };
+  const correction = (adj && Number.isFinite(adj.manual_correction)) ? adj.manual_correction : 0;
+  return { total: sum + correction, fromFlights: sum, contributions, correction };
 }
 
-// ---------- Year fraction ----------
-// Day-precision: Jan 1 = 0, Dec 31 = ~1 (roughly day-of-year / days-in-year).
-function computeYearProgress(now) {
-  const start = new Date(now.getFullYear(), 0, 1);
-  const end = new Date(now.getFullYear() + 1, 0, 1);
-  return (now - start) / (end - start);
+function isoDate(d) {
+  // Local-time YYYY-MM-DD (matching how flight dates are stored)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// ---------- Window progress ----------
+// Fraction of the qualification window elapsed (0..1+, can exceed 1 if past end).
+function computeWindowProgress(window, now) {
+  return (now - window.start) / (window.end - window.start);
 }
 
 // ============================================================
@@ -236,28 +276,22 @@ function renderTierBar(program, balance) {
 }
 
 // ============================================================
-// Year-pace bar (bottom)
+// Pace bar (bottom)
 // ============================================================
-function renderPaceBar(program, balance, yearProgress) {
+function renderPaceBar(program, balance, windowProgress, window) {
   const $bar = document.getElementById(`pace-bar-${program.id}`);
   if (!$bar) return;
 
-  // The "tier-points-as-fraction-of-target" — for Air France, pace measures
-  // against the FINAL target (1850).
   const finalTarget = program.targets[program.targets.length - 1];
-  const tpFraction = clamp(balance / finalTarget, 0, Infinity);  // can exceed 1.0
-  const yearPct = (yearProgress * 100).toFixed(2);
-  // Inside the white year-fill, the blue tp-fill is sized as a fraction of
-  // the WHOLE bar (not of the year fill), so it can extend beyond the year
-  // fill if you're ahead of schedule.
+  const tpFraction = clamp(balance / finalTarget, 0, Infinity);
+  const yearPct = clamp(windowProgress * 100, 0, 100).toFixed(2);
   const tpPct = clamp(tpFraction * 100, 0, 100).toFixed(2);
 
-  // Pace ratio: tp progress / year progress. >100% = ahead, <100% = behind.
   let paceRatio;
-  if (yearProgress <= 0) {
+  if (windowProgress <= 0) {
     paceRatio = tpFraction > 0 ? Infinity : 1;
   } else {
-    paceRatio = tpFraction / yearProgress;
+    paceRatio = tpFraction / windowProgress;
   }
   const pacePct = isFinite(paceRatio) ? Math.round(paceRatio * 100) : '∞';
 
@@ -266,13 +300,27 @@ function renderPaceBar(program, balance, yearProgress) {
 
   const $pct = $bar.querySelector('.pace-pct');
   $pct.textContent = `${pacePct}%`;
-  // Color the pct text by whether on/off pace
   if (typeof paceRatio === 'number') {
     if (paceRatio >= 1) $pct.dataset.tone = 'good';
     else if (paceRatio >= 0.75) $pct.dataset.tone = 'warn';
     else $pct.dataset.tone = 'bad';
   } else {
     $pct.dataset.tone = 'good';
+  }
+
+  // Update the axis labels under the pace bar to reflect the window.
+  // For a custom window we show short month-day labels at both ends; for
+  // calendar-year we keep the simple JAN / DEC labels.
+  const $axis = $bar.parentElement.querySelector('.pace-axis');
+  if ($axis) {
+    if (window.custom) {
+      const endInclusive = new Date(window.end);
+      endInclusive.setDate(endInclusive.getDate() - 1);
+      const fmt = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      $axis.innerHTML = `<span>${fmt(window.start)}</span><span>${fmt(endInclusive)}</span>`;
+    } else {
+      $axis.innerHTML = `<span>JAN</span><span>DEC</span>`;
+    }
   }
 }
 
@@ -282,7 +330,7 @@ function renderPaceBar(program, balance, yearProgress) {
 // ============================================================
 // Debug breakdown — every flight contributing to this program's balance
 // ============================================================
-function renderBreakdown(program, balance) {
+function renderBreakdown(program, balance, window) {
   const $el = document.getElementById(`tp-breakdown-${program.id}`);
   if (!$el) return;
   const rows = balance.contributions.map(({ flight: f, miles }) => `
@@ -293,21 +341,21 @@ function renderBreakdown(program, balance) {
       <td class="bd-miles">${fmt(miles)}</td>
     </tr>
   `).join('');
-  const filterSummary = `Year: ${new Date().getFullYear()} · Airlines: ${program.airlines.join(', ')}`;
+  const filterSummary = `Window: ${window.label} · Airlines: ${program.airlines.join(', ')}`;
   $el.innerHTML = `
     <p class="bd-filter">${filterSummary}</p>
     <table class="bd-table">
       <thead><tr><th>Date</th><th>AL</th><th>Route</th><th>TP</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="4" class="bd-empty">No matching flights this year.</td></tr>'}</tbody>
+      <tbody>${rows || '<tr><td colspan="4" class="bd-empty">No matching flights this window.</td></tr>'}</tbody>
       <tfoot>
         <tr class="bd-subtotal">
           <td colspan="3">Subtotal from flights</td>
           <td class="bd-miles">${fmt(balance.fromFlights)}</td>
         </tr>
-        ${balance.rollover > 0 ? `
+        ${balance.correction !== 0 ? `
           <tr class="bd-rollover">
-            <td colspan="3">+ Rollover miles</td>
-            <td class="bd-miles">${fmt(balance.rollover)}</td>
+            <td colspan="3">${balance.correction > 0 ? '+' : ''} Manual correction</td>
+            <td class="bd-miles">${fmt(balance.correction)}</td>
           </tr>
         ` : ''}
         <tr class="bd-total">
@@ -329,31 +377,37 @@ function fmt(n) { return Number(n).toLocaleString(); }
 function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
 
 // ============================================================
-// Rollover modal
+// Adjustment modal — manual correction + qualification start date
 // ============================================================
 function openRolloverModal(programId) {
   const program = PROGRAMS.find(p => p.id === programId);
   if (!program) return;
-  const current = store.programAdjustments?.get(programId)?.rollover || 0;
+  const adj = store.programAdjustments?.get(programId) || {};
+  const currentCorrection = Number.isFinite(adj.manual_correction) ? adj.manual_correction : 0;
+  const currentStart = adj.qualification_start || '';
 
   const wrap = document.createElement('div');
   wrap.className = 'modal';
   wrap.innerHTML = `
     <div class="modal-card rollover-modal">
       <header class="modal-head">
-        <h2>Rollover miles — ${program.name}</h2>
+        <h2>Adjustments — ${program.name}</h2>
         <button class="ghost icon-only" id="ro-close" aria-label="Close">×</button>
       </header>
       <div class="modal-body">
-        <p class="muted">
-          Rollover miles are added to the current year balance — useful for
-          programs that carry forward unspent tier points from the previous
-          year. Set to 0 to remove.
-        </p>
         <div class="field">
-          <label>Rollover miles</label>
-          <input type="number" id="ro-input" min="0" step="1" value="${current}" autocomplete="off">
+          <label>Manual balance correction</label>
+          <input type="number" id="ro-correction" step="1" value="${currentCorrection}" autocomplete="off">
+          <p class="hint-text">Added to the total. Use a negative number to subtract (e.g. to remove an unexplained "gift" from the balance).</p>
         </div>
+
+        <div class="field">
+          <label>Start of qualification year <span class="hint">(optional)</span></label>
+          <input type="date" id="ro-start" value="${currentStart}" autocomplete="off">
+          <p class="hint-text">When set, only flights on or after this date count, and the window runs for 365 days. Leave empty to use the calendar year.</p>
+          <button type="button" class="ghost small" id="ro-start-clear">Clear date</button>
+        </div>
+
         <p class="error-msg" id="ro-error"></p>
       </div>
       <footer class="modal-foot">
@@ -368,25 +422,31 @@ function openRolloverModal(programId) {
   document.body.appendChild(wrap);
 
   const close = () => wrap.remove();
-  const $input = wrap.querySelector('#ro-input');
-  setTimeout(() => { $input.focus(); $input.select(); }, 0);
+  const $correction = wrap.querySelector('#ro-correction');
+  const $start = wrap.querySelector('#ro-start');
+  setTimeout(() => { $correction.focus(); $correction.select(); }, 0);
 
   wrap.querySelector('#ro-close').addEventListener('click', close);
   wrap.querySelector('#ro-cancel').addEventListener('click', close);
+  wrap.querySelector('#ro-start-clear').addEventListener('click', () => { $start.value = ''; });
   wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
 
   const save = async () => {
     const $err = wrap.querySelector('#ro-error');
     $err.textContent = '';
-    const value = $input.value.trim();
-    if (value === '' || isNaN(Number(value)) || Number(value) < 0) {
-      $err.textContent = 'Enter a non-negative number.';
+    const cVal = $correction.value.trim();
+    if (cVal === '' || isNaN(Number(cVal))) {
+      $err.textContent = 'Manual correction must be a number (negative is allowed).';
       return;
     }
+    const startVal = $start.value || null;
     const $save = wrap.querySelector('#ro-save');
     $save.disabled = true;
     try {
-      await setProgramRollover(programId, Number(value));
+      await setProgramAdjustment(programId, {
+        manual_correction: Number(cVal),
+        qualification_start: startVal,
+      });
       close();
     } catch (e) {
       $err.textContent = 'Save failed: ' + (e.message || e);
@@ -395,7 +455,11 @@ function openRolloverModal(programId) {
   };
 
   wrap.querySelector('#ro-save').addEventListener('click', save);
-  $input.addEventListener('keydown', e => {
+  $correction.addEventListener('keydown', e => {
+    if (e.key === 'Enter') save();
+    if (e.key === 'Escape') close();
+  });
+  $start.addEventListener('keydown', e => {
     if (e.key === 'Enter') save();
     if (e.key === 'Escape') close();
   });

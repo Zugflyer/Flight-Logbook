@@ -148,13 +148,24 @@ export async function deleteAirport(iata) {
   emit({ type: 'airports:changed', kind: 'delete', iata });
 }
 
-// ----------- Program adjustments (rollover miles, etc.) -----------
-export async function setProgramRollover(programId, rollover) {
+// ----------- Program adjustments (manual corrections, qualification windows) -----------
+/**
+ * Update a program's adjustment row. Accepts a partial patch:
+ *   { manual_correction?: number, qualification_start?: string|null }
+ * Uses upsert so the row is created on first call.
+ */
+export async function setProgramAdjustment(programId, patch) {
   const payload = {
     program_id: programId,
-    rollover: Math.max(0, Math.round(Number(rollover) || 0)),
     updated_at: new Date().toISOString(),
   };
+  if (patch.manual_correction !== undefined) {
+    payload.manual_correction = Math.round(Number(patch.manual_correction) || 0);
+  }
+  if (patch.qualification_start !== undefined) {
+    // Empty string or null clears it; otherwise expect 'YYYY-MM-DD'
+    payload.qualification_start = patch.qualification_start || null;
+  }
   const { data, error } = await sb
     .from('program_adjustments')
     .upsert(payload, { onConflict: 'program_id' })
