@@ -1,15 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="11" fill="#11161f"/>
+  <!-- Rounded square background, Outlook blue -->
+  <rect width="64" height="64" rx="12" fill="#0078d4"/>
 
-  <g fill="#d4a14a">
-    <!-- Vertical stem (centered horizontally) -->
-    <rect x="22" y="13" width="9" height="38"/>
-    <!-- Top arm extending right -->
-    <rect x="22" y="13" width="23" height="8"/>
-    <!-- Middle arm (shorter) -->
-    <rect x="22" y="28" width="17" height="7"/>
+  <!-- Subtle white "wing/swoosh" arcing across the lower half for an airline feel -->
+  <path d="M -2 50 Q 32 38 70 56 L 70 70 L -2 70 Z"
+        fill="#ffffff" opacity="0.10"/>
 
-    <!-- Bottom serif (single horizontal foot, classical) -->
-    <rect x="17" y="48" width="19" height="3"/>
-  </g>
+  <!-- The F — bold geometric, white -->
+  <!-- Vertical stem -->
+  <rect x="18" y="14" width="10" height="36" fill="#ffffff"/>
+  <!-- Top crossbar -->
+  <rect x="18" y="14" width="30" height="9" fill="#ffffff"/>
+  <!-- Middle crossbar (slightly shorter, classic F proportions) -->
+  <rect x="18" y="29" width="22" height="8" fill="#ffffff"/>
+
+  <!-- Red accent: a small slash near the top-right corner of the F top bar,
+       evoking a wingtip / airline livery cheatline -->
+  <path d="M 48 14 L 54 14 L 50 23 L 44 23 Z" fill="#e63946"/>
 </svg>
