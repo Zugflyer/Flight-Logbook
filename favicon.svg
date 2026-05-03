@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="11" fill="#11161f"/>
+
+  <g fill="#d4a14a">
+    <!-- Vertical stem (centered horizontally) -->
+    <rect x="22" y="13" width="9" height="38"/>
+    <!-- Top arm extending right -->
+    <rect x="22" y="13" width="23" height="8"/>
+    <!-- Middle arm (shorter) -->
+    <rect x="22" y="28" width="17" height="7"/>
+
+    <!-- Bottom serif (single horizontal foot, classical) -->
+    <rect x="17" y="48" width="19" height="3"/>
+  </g>
+</svg>
