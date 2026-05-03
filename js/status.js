@@ -324,6 +324,7 @@ function escapeHtml(s) {
 }
 
 
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function fmt(n) { return Number(n).toLocaleString(); }
 function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
 
