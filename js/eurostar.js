@@ -7,7 +7,7 @@
 // will be added next.
 // ============================================================================
 
-import { store, onChange, addEurostarTrip, updateEurostarTrip, deleteEurostarTrip } from './data.js';
+import { store, onChange, addEurostarTrip, updateEurostarTrip, deleteEurostarTrip, setProgramAdjustment } from './data.js';
 
 // Cities in the dropdowns. The order is intentional and asymmetric: in the
 // FROM list, Paris is first (most flights start there); in the TO list,
@@ -76,7 +76,11 @@ export function initEurostar() {
 
         <div class="es-progress-card">
           <header class="eurostar-head">
-            <h2>Eurostar Club Avantage</h2>
+            <div class="eurostar-head-titlewrap">
+              <h2>Eurostar Club Avantage</h2>
+              <span class="es-progress-window-label" id="es-progress-window"></span>
+            </div>
+            <button class="rollover-btn" id="es-progress-adjust" aria-label="Adjustments" title="Adjustments">+</button>
           </header>
           <div class="es-progress-body">
             <div class="es-progress-bar-wrap" id="es-progress-bar-wrap">
@@ -99,14 +103,98 @@ export function initEurostar() {
 
   onChange(evt => {
     if (!evt) return;
-    if (evt.type === 'data:loaded' || evt.type === 'eurostar:changed' || evt.type === 'auth:locked') {
+    if (evt.type === 'data:loaded' || evt.type === 'eurostar:changed' || evt.type === 'auth:locked' || evt.type === 'program:changed') {
       render();
     }
   });
 
   initAddForm();
 
+  // Wire the adjustments button on the progress card
+  const $adjustBtn = document.getElementById('es-progress-adjust');
+  if ($adjustBtn) {
+    $adjustBtn.addEventListener('click', openEsAdjustmentsModal);
+  }
+
   if (store.ready) render();
+}
+
+// ============================================================
+// Eurostar adjustments modal — manual correction + annual reset date
+// ============================================================
+function openEsAdjustmentsModal() {
+  const adj = store.programAdjustments?.get(ES_PROGRAM_ID) || {};
+  const currentCorrection = Number.isFinite(adj.manual_correction) ? adj.manual_correction : 0;
+  const currentStart = adj.qualification_start || '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  wrap.innerHTML = `
+    <div class="modal-card rollover-modal">
+      <header class="modal-head">
+        <h2>Adjustments — Eurostar</h2>
+        <button class="ghost icon-only" id="esa-close" aria-label="Close">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="field">
+          <label>Manual balance correction</label>
+          <input type="number" id="esa-correction" step="1" value="${currentCorrection}" autocomplete="off">
+          <p class="hint-text">Added to the total. Use a negative number to subtract.</p>
+        </div>
+        <div class="field">
+          <label>Annual reset date <span class="hint">(optional)</span></label>
+          <input type="date" id="esa-start" value="${currentStart}" autocomplete="off">
+          <p class="hint-text">The day each year when the program year resets. Pick any date with the right month/day — the year part is auto-rolled. Leave empty to use the calendar year.</p>
+          <button type="button" class="ghost small" id="esa-start-clear">Clear date</button>
+        </div>
+        <p class="error-msg" id="esa-error"></p>
+      </div>
+      <footer class="modal-foot">
+        <span></span>
+        <div class="foot-right">
+          <button class="ghost" id="esa-cancel">Cancel</button>
+          <button class="primary" id="esa-save">Save</button>
+        </div>
+      </footer>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  const close = () => wrap.remove();
+  const $correction = wrap.querySelector('#esa-correction');
+  const $start = wrap.querySelector('#esa-start');
+  setTimeout(() => { $correction.focus(); $correction.select(); }, 0);
+
+  wrap.querySelector('#esa-close').addEventListener('click', close);
+  wrap.querySelector('#esa-cancel').addEventListener('click', close);
+  wrap.querySelector('#esa-start-clear').addEventListener('click', () => { $start.value = ''; });
+  wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+
+  const save = async () => {
+    const $err = wrap.querySelector('#esa-error');
+    $err.textContent = '';
+    const cVal = $correction.value.trim();
+    if (cVal === '' || isNaN(Number(cVal))) {
+      $err.textContent = 'Manual correction must be a number.';
+      return;
+    }
+    const startVal = $start.value || null;
+    const $save = wrap.querySelector('#esa-save');
+    $save.disabled = true;
+    try {
+      await setProgramAdjustment(ES_PROGRAM_ID, {
+        manual_correction: Number(cVal),
+        qualification_start: startVal,
+      });
+      close();
+    } catch (e) {
+      $err.textContent = 'Save failed: ' + (e.message || e);
+      $save.disabled = false;
+    }
+  };
+  wrap.querySelector('#esa-save').addEventListener('click', save);
+  $correction.addEventListener('keydown', e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') close(); });
+  $start.addEventListener('keydown', e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') close(); });
 }
 
 // ============================================================
@@ -237,20 +325,71 @@ function refreshPointsSuggestions() {
 // ============================================================
 const FFP_TARGET = 5000;
 const FFP_VISUAL_CAP = 1.3;  // bar can extend up to 130% of track width
+const ES_PROGRAM_ID = 'es';  // row in program_adjustments holding the anchor
+
+// Compute the annual-rolling window using the same interpretation as the
+// Status tab: only month/day from qualification_start matter; the year is
+// the most recent past occurrence. Defaults to calendar year if unset.
+function computeEsWindow(now) {
+  const adj = store.programAdjustments?.get(ES_PROGRAM_ID);
+  const qs = adj?.qualification_start;
+  if (qs) {
+    const parts = qs.split('-');
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    let start = new Date(now.getFullYear(), month, day);
+    if (start > now) {
+      start = new Date(now.getFullYear() - 1, month, day);
+    }
+    const end = new Date(start);
+    end.setFullYear(end.getFullYear() + 1);
+    return { start, end, custom: true };
+  }
+  const year = now.getFullYear();
+  return {
+    start: new Date(year, 0, 1),
+    end: new Date(year + 1, 0, 1),
+    custom: false,
+  };
+}
+
+function isoDateLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function formatWindowLabelShort(start, end) {
+  const endInc = new Date(end);
+  endInc.setDate(endInc.getDate() - 1);
+  const f = d => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${f(start)} – ${f(endInc)}`;
+}
 
 function renderProgress() {
   const $fill = document.getElementById('es-progress-fill');
   const $pct = document.getElementById('es-progress-pct');
   const $total = document.getElementById('es-progress-total');
+  const $window = document.getElementById('es-progress-window');
   if (!$fill || !$pct || !$total) return;
 
-  // Sum points for the current calendar year.
-  const yearStr = String(new Date().getFullYear());
+  const now = new Date();
+  const window = computeEsWindow(now);
+  const startStr = isoDateLocal(window.start);
+  const endStr = isoDateLocal(window.end);  // exclusive
+
   let total = 0;
   for (const t of store.eurostarTrips || []) {
-    if (!t.date || !t.date.startsWith(yearStr)) continue;
+    if (!t.date) continue;
+    if (t.date < startStr || t.date >= endStr) continue;
     if (t.points != null) total += Number(t.points) || 0;
   }
+
+  // Manual correction (same field as the airline programs)
+  const adj = store.programAdjustments?.get(ES_PROGRAM_ID);
+  const correction = (adj && Number.isFinite(adj.manual_correction)) ? adj.manual_correction : 0;
+  total += correction;
 
   const fraction = total / FFP_TARGET;
   const widthPct = Math.min(fraction, FFP_VISUAL_CAP) * 100;
@@ -259,13 +398,12 @@ function renderProgress() {
   $fill.style.width = `${widthPct.toFixed(2)}%`;
   $pct.textContent = `${pct}%`;
   $total.textContent = `${total.toLocaleString()} points`;
-
-  // Color the percentage label by progress: light text on filled bar when
-  // we've at least crossed enough that the % is inside the fill area.
   $pct.classList.toggle('on-fill', widthPct > 18);
-  // Tone the total ("at end") muted vs. accented depending on whether we've
-  // exceeded the target.
   $total.classList.toggle('at-target', total >= FFP_TARGET);
+
+  if ($window) {
+    $window.textContent = window.custom ? formatWindowLabelShort(window.start, window.end) : String(now.getFullYear());
+  }
 }
 
 // ============================================================

@@ -149,15 +149,28 @@ function render() {
 }
 
 // ---------- Qualification window ----------
-// Returns { start: Date, end: Date, label: string } describing the period
-// over which flights count. If the program has a `qualification_start` set
-// in adjustments, the window is [start, start+365). Otherwise it's the
-// current calendar year.
+// Annual-rolling interpretation: we take ONLY the month/day from
+// `qualification_start` (the year stored is ignored). The current window
+// runs from the most recent past occurrence of that month-day up to one
+// year later. Examples on May 3, 2026:
+//   • Jan 1  → window: Jan 1 2026 → Dec 31 2026
+//   • Feb 1  → window: Feb 1 2026 → Jan 31 2027
+//   • Oct 1  → window: Oct 1 2025 → Sep 30 2026 (last Oct 1 was 7 months ago)
+// When no anchor is set, defaults to calendar year.
 function computeWindow(program, now) {
   const adj = store.programAdjustments?.get(program.id);
   const qs = adj?.qualification_start;
   if (qs) {
-    const start = new Date(qs + 'T00:00:00');
+    // Parse just the month/day; year is computed from `now`.
+    const parts = qs.split('-');
+    const month = parseInt(parts[1], 10) - 1;  // 0-indexed
+    const day = parseInt(parts[2], 10);
+    let start = new Date(now.getFullYear(), month, day);
+    // If the anchor for this year hasn't happened yet, the current window
+    // started one year earlier.
+    if (start > now) {
+      start = new Date(now.getFullYear() - 1, month, day);
+    }
     const end = new Date(start);
     end.setFullYear(end.getFullYear() + 1);
     return { start, end, custom: true, label: formatWindowLabel(start, end) };
@@ -402,9 +415,9 @@ function openRolloverModal(programId) {
         </div>
 
         <div class="field">
-          <label>Start of qualification year <span class="hint">(optional)</span></label>
+          <label>Annual reset date <span class="hint">(optional)</span></label>
           <input type="date" id="ro-start" value="${currentStart}" autocomplete="off">
-          <p class="hint-text">When set, only flights on or after this date count, and the window runs for 365 days. Leave empty to use the calendar year.</p>
+          <p class="hint-text">The day each year when the program year resets. Pick any date with the right month/day — the year part is auto-rolled. Leave empty to use the calendar year (Jan 1).</p>
           <button type="button" class="ghost small" id="ro-start-clear">Clear date</button>
         </div>
 
