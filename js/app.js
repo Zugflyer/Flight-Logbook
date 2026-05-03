@@ -8,6 +8,7 @@ import { DEFAULTS } from './config.js';
 import { initLog, openManageAirports } from './log.js';
 import { initStats } from './stats.js';
 import { initMap } from './map.js';
+import { initStatus } from './status.js';
 
 // ---------- Settings (localStorage-backed) ----------
 const SETTINGS_KEY = 'flightlog.settings.v1';
@@ -160,3 +161,4 @@ onChange(evt => {
 initLog();
 initStats();
 initMap();
+initStatus();
