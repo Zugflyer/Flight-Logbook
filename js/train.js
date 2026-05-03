@@ -26,6 +26,13 @@ function operatorLogo(name) {
   return OPERATORS.find(o => o.id === name)?.logo || null;
 }
 
+// Suggested stations for the From/To autocomplete. Free text is still
+// allowed — these are just suggestions that filter as you type.
+const STATIONS = [
+  'Paris', 'London', 'Basel', 'Lausanne', 'Genève', 'Marseille',
+  'Luxembourg', 'Bruxelles', 'München', 'Mannheim', 'Köln',
+];
+
 // FFP programs. `operators` lists which operator names contribute. `targets`
 // is the cumulative tier-point thresholds; the LAST one is the "100%" target
 // the percentage is computed against. `windowKind` is 'annual' (anchor in
@@ -117,16 +124,19 @@ export function initTrain() {
               </div>
               <div class="train-form-field">
                 <label for="train-form-from">From</label>
-                <input type="text" id="train-form-from" required autocomplete="off" placeholder="Origin">
+                <input type="text" id="train-form-from" required autocomplete="off" placeholder="Origin" list="train-station-suggestions">
               </div>
               <div class="train-form-field">
                 <label for="train-form-to">To</label>
-                <input type="text" id="train-form-to" required autocomplete="off" placeholder="Destination">
+                <input type="text" id="train-form-to" required autocomplete="off" placeholder="Destination" list="train-station-suggestions">
               </div>
               <div class="train-form-field">
                 <label for="train-form-points">Points</label>
                 <input type="number" id="train-form-points" min="0" step="1" inputmode="numeric" list="train-points-suggestions" required>
                 <datalist id="train-points-suggestions"></datalist>
+                <datalist id="train-station-suggestions">
+                  ${STATIONS.map(s => `<option value="${s}">`).join('')}
+                </datalist>
               </div>
               <div class="train-form-action">
                 <button type="submit" class="primary" id="train-form-submit">Add to logbook</button>
