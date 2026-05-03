@@ -39,39 +39,60 @@ export function initEurostar() {
         </div>
       </section>
       <section class="eurostar-right" id="eurostar-right">
-        <header class="eurostar-head">
-          <h2>Add trip</h2>
-          <p class="eurostar-summary">Today and recent</p>
-        </header>
-        <form class="es-form" id="es-form" autocomplete="off">
-          <div class="es-form-row">
-            <div class="es-form-field">
-              <label for="es-form-date">Date</label>
-              <input type="date" id="es-form-date" required>
+        <div class="es-add-card">
+          <header class="eurostar-head">
+            <h2>Add trip</h2>
+          </header>
+          <form class="es-form" id="es-form" autocomplete="off">
+            <div class="es-form-row">
+              <div class="es-form-field">
+                <label for="es-form-date">Date</label>
+                <input type="date" id="es-form-date" required>
+              </div>
+              <div class="es-form-field">
+                <label for="es-form-from">From</label>
+                <select id="es-form-from" required>
+                  ${CITIES_FROM.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+              </div>
+              <div class="es-form-field">
+                <label for="es-form-to">To</label>
+                <select id="es-form-to" required>
+                  ${CITIES_TO.map(c => `<option value="${c}">${c}</option>`).join('')}
+                </select>
+              </div>
+              <div class="es-form-field">
+                <label for="es-form-points">Points</label>
+                <input type="number" id="es-form-points" min="0" step="1" inputmode="numeric" list="es-points-suggestions" required>
+                <datalist id="es-points-suggestions"></datalist>
+              </div>
+              <div class="es-form-action">
+                <button type="submit" class="primary" id="es-form-submit">Add to logbook</button>
+              </div>
             </div>
-            <div class="es-form-field">
-              <label for="es-form-from">From</label>
-              <select id="es-form-from" required>
-                ${CITIES_FROM.map(c => `<option value="${c}">${c}</option>`).join('')}
-              </select>
+            <p class="es-form-error" id="es-form-error"></p>
+          </form>
+        </div>
+
+        <div class="es-progress-card">
+          <header class="eurostar-head">
+            <h2>Eurostar Club Avantage</h2>
+          </header>
+          <div class="es-progress-body">
+            <div class="es-progress-bar-wrap" id="es-progress-bar-wrap">
+              <div class="es-progress-track">
+                <div class="es-progress-fill" id="es-progress-fill"></div>
+                <span class="es-progress-pct" id="es-progress-pct"></span>
+              </div>
+              <div class="es-progress-axis">
+                <span class="es-axis-tick" style="left: 0%"><span class="es-axis-num">0</span></span>
+                <span class="es-axis-tick" style="left: 58%"><span class="es-axis-num">2,900</span></span>
+                <span class="es-axis-tick" style="left: 100%"><span class="es-axis-num">5,000</span></span>
+              </div>
             </div>
-            <div class="es-form-field">
-              <label for="es-form-to">To</label>
-              <select id="es-form-to" required>
-                ${CITIES_TO.map(c => `<option value="${c}">${c}</option>`).join('')}
-              </select>
-            </div>
-            <div class="es-form-field">
-              <label for="es-form-points">Points</label>
-              <input type="number" id="es-form-points" min="0" step="1" inputmode="numeric" list="es-points-suggestions" required>
-              <datalist id="es-points-suggestions"></datalist>
-            </div>
-            <div class="es-form-action">
-              <button type="submit" class="primary" id="es-form-submit">Add to logbook</button>
-            </div>
+            <div class="es-progress-total" id="es-progress-total"></div>
           </div>
-          <p class="es-form-error" id="es-form-error"></p>
-        </form>
+        </div>
       </section>
     </div>
   `;
@@ -212,11 +233,48 @@ function refreshPointsSuggestions() {
 }
 
 // ============================================================
+// FFP progress bar (Eurostar Club Avantage)
+// ============================================================
+const FFP_TARGET = 5000;
+const FFP_VISUAL_CAP = 1.3;  // bar can extend up to 130% of track width
+
+function renderProgress() {
+  const $fill = document.getElementById('es-progress-fill');
+  const $pct = document.getElementById('es-progress-pct');
+  const $total = document.getElementById('es-progress-total');
+  if (!$fill || !$pct || !$total) return;
+
+  // Sum points for the current calendar year.
+  const yearStr = String(new Date().getFullYear());
+  let total = 0;
+  for (const t of store.eurostarTrips || []) {
+    if (!t.date || !t.date.startsWith(yearStr)) continue;
+    if (t.points != null) total += Number(t.points) || 0;
+  }
+
+  const fraction = total / FFP_TARGET;
+  const widthPct = Math.min(fraction, FFP_VISUAL_CAP) * 100;
+  const pct = Math.round(fraction * 100);
+
+  $fill.style.width = `${widthPct.toFixed(2)}%`;
+  $pct.textContent = `${pct}%`;
+  $total.textContent = `${total.toLocaleString()} points`;
+
+  // Color the percentage label by progress: light text on filled bar when
+  // we've at least crossed enough that the % is inside the fill area.
+  $pct.classList.toggle('on-fill', widthPct > 18);
+  // Tone the total ("at end") muted vs. accented depending on whether we've
+  // exceeded the target.
+  $total.classList.toggle('at-target', total >= FFP_TARGET);
+}
+
+// ============================================================
 // Render
 // ============================================================
 function render() {
   if (!mounted) return;
   refreshPointsSuggestions();
+  renderProgress();
   const trips = store.eurostarTrips || [];
   const total = trips.reduce((s, t) => s + (Number(t.points) || 0), 0);
 

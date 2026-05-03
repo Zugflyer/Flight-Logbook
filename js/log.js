@@ -294,13 +294,17 @@ function rowHtml(f) {
   const dist = settings.unit === 'mi' ? f.distance_mi : f.distance_km;
   const flashClass = f.id === lastFlash ? ' flash' : '';
   const historicClass = isHistoric(f) ? ' historic' : '';
+  // Future flights: dated AFTER today's local date. Flights on today's date
+  // are still treated as "current" (not future).
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const futureClass = (!isHistoric(f) && f.date && f.date > todayStr) ? ' future' : '';
   const eqp = aircraftCode(f.aircraft);
   const dateCell = isHistoric(f)
     ? `<div class="date-historic">Pre-2012</div>`
     : `<div class="date-main">${formatDate(f.date)}</div>
        <div class="date-sub">${f.date.slice(0, 4)}</div>`;
   return `
-    <div class="tr${flashClass}${historicClass}" data-id="${f.id}" style="height:${ROW_HEIGHT}px">
+    <div class="tr${flashClass}${historicClass}${futureClass}" data-id="${f.id}" style="height:${ROW_HEIGHT}px">
       <div class="td col-logo">${airlineLogoHtml(f.airline)}</div>
       <div class="td col-eqp"><span class="eqp-code">${escapeHtml(eqp || '—')}</span></div>
       <div class="td col-route">

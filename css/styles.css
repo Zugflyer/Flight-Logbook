@@ -313,17 +313,22 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .panel[data-panel="log"].active {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: 100%;
-  gap: 0;
+  gap: 24px;
+  padding: 24px 32px 48px;
+  align-items: start;
+  background: var(--bg-0);
 }
 
 .log-root {
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
-  border-right: 1px solid var(--border);
   background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  overflow: hidden;
+  height: calc(100vh - 78px - 72px);  /* viewport minus header (78) minus our 24+48 padding */
+  max-height: 880px;
 }
 
 /* ============================================================
@@ -333,9 +338,12 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
   display: flex;
   flex-direction: column;
   min-height: 0;
-  background: var(--bg-0);
-  padding: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
   overflow: hidden;
+  height: calc(100vh - 78px - 72px);
+  max-height: 880px;
 }
 
 .stats-root {
@@ -1280,9 +1288,11 @@ button.ghost.danger:hover { color: var(--danger); border-color: var(--danger); b
   /* Below 1024px, stack the split panes */
   .panel[data-panel="log"].active {
     grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
   }
   .log-side { display: none; }   /* hide stats column on small screens */
-  .log-root { border-right: none; }
+  .log-root { height: auto; max-height: none; min-height: 500px; }
 }
 @media (max-width: 720px) {
   /* Stack the two boxes vertically on phones */
@@ -1349,6 +1359,32 @@ button.ghost.danger:hover { color: var(--danger); border-color: var(--danger); b
   color: var(--fg-2);
   font-size: 13px;
   letter-spacing: 0.01em;
+}
+
+/* Future flights — dated after today. Italic + lighter grey, but no
+   background tint (they're not "old", they're "upcoming"). Visually
+   distinct from historic without being heavy. */
+.tr.future {
+  font-style: italic;
+  color: var(--fg-3);
+}
+.tr.future .route-iata,
+.tr.future .route-city,
+.tr.future .eqp-code,
+.tr.future .col-distance,
+.tr.future .col-tier,
+.tr.future .date-main,
+.tr.future .date-sub {
+  color: var(--fg-3);
+}
+.tr.future .airline-logo,
+.tr.future .cabin-pill {
+  opacity: 0.7;
+}
+.tr.future .airline-chip {
+  color: var(--fg-3);
+  border-color: var(--fg-3);
+  background: transparent;
 }
 
 /* Historic checkbox row in the add/edit modal */
@@ -1794,11 +1830,11 @@ button.ghost.small {
   padding: 10px 20px;
   background: var(--bg-2);
   border-bottom: 1px solid var(--accent-line);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--fg-2);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--fg-1);
 }
 .es-th { display: flex; align-items: center; }
 .es-col-points { justify-content: flex-end; }
@@ -1849,7 +1885,7 @@ button.ghost.small {
   font-weight: 400;
 }
 
-.es-col-points {
+.es-tr .es-col-points {
   justify-content: flex-end;
   font-weight: 600;
   color: var(--accent);
@@ -1983,4 +2019,126 @@ button.ghost.small {
     grid-column: 1 / -1;
   }
   .es-form-action .primary { width: 100%; }
+}
+
+/* ============================================================================
+ * Eurostar — right side: stacked add-card and progress-card
+ * ============================================================================ */
+.eurostar-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: transparent;
+  border: none;
+  min-height: 500px;
+}
+.es-add-card,
+.es-progress-card {
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* The form card is now compact — no internal padding doubled by .es-form */
+.es-add-card .es-form {
+  padding: 14px 20px 18px;
+}
+
+/* Progress card layout */
+.es-progress-card {
+  flex: 1;
+}
+.es-progress-body {
+  padding: 22px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* The bar wrapper allows the fill to extend past 100% (when over target).
+   The track itself stays at 100% width and represents 0..5000. */
+.es-progress-bar-wrap {
+  position: relative;
+  padding-bottom: 28px;  /* reserve space for axis ticks below */
+}
+.es-progress-track {
+  position: relative;
+  height: 28px;
+  background: var(--bg-2);
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  overflow: visible;     /* allow fill to spill past on overshoot */
+}
+.es-progress-fill {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  bottom: -1px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent) 0%, #2b8ed8 100%);
+  border-radius: 6px;
+  transition: width 350ms ease-out;
+}
+.es-progress-pct {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+  z-index: 2;
+  transition: color 200ms;
+}
+.es-progress-pct.on-fill {
+  color: #ffffff;
+}
+
+/* Axis under the track */
+.es-progress-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 32px;
+  height: 16px;
+}
+.es-axis-tick {
+  position: absolute;
+  top: 0;
+}
+.es-axis-tick::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--fg-3);
+}
+.es-axis-tick:first-child::before { left: 0; }
+.es-axis-tick:last-child::before { left: 100%; transform: translateX(-1px); }
+.es-axis-num {
+  position: absolute;
+  top: 0;
+  font-size: 11px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.es-axis-tick:first-child .es-axis-num { transform: translateX(0); }
+.es-axis-tick:last-child .es-axis-num { transform: translateX(-100%); }
+
+/* Total points label, shown below the bar */
+.es-progress-total {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.es-progress-total.at-target {
+  color: var(--accent);
 }
