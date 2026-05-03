@@ -420,7 +420,7 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .stats-row {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr) 56px;
+  grid-template-columns: 110px minmax(0, 1fr) 56px;
   align-items: center;
   gap: 10px;
   padding: 6px 14px;
@@ -431,37 +431,56 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .stats-row:last-child { border-bottom: none; }
 .stats-row:hover { background: var(--bg-2); }
 
+/* Italic styling for the synthetic "<City> / all airports" rows */
+.stats-row-group .stats-city {
+  font-style: italic;
+  color: var(--accent);
+}
+.stats-row-group .stats-group-tag {
+  font-style: italic;
+  font-family: var(--sans);
+  letter-spacing: 0.01em;
+}
+.stats-row-group .stats-bar {
+  opacity: 0.6;
+}
+
 /* Left label (airline logo or airport label) */
 .stats-row-label {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  height: 24px;
+  height: 32px;
   overflow: hidden;
 }
 .stats-row-label.airline { justify-content: center; }
 .stats-row-label.airport {
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 6px;
+  /* Two-line stacked label: city on top, IATA below (matches the date column
+     style elsewhere). Gives the city name room to breathe. */
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 .stats-city {
   color: var(--fg-0);
   font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .stats-iata {
   color: var(--fg-3);
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  line-height: 1.2;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* Logo for airline rows */
@@ -496,6 +515,22 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
   background: linear-gradient(90deg, var(--accent) 0%, #2b8ed8 100%);
   border-radius: 3px;
   transition: width 200ms ease-out;
+}
+
+/* Truncation: when #1 is much larger than #2, the top bar fills 100% but
+   carries a zig-zag "rip" near the right end to signal it's been cut. The
+   right-most ~14px of the bar shows page background through the rip. */
+.stats-bar-truncated {
+  position: relative;
+  /* Mask the bar so the area at ~84% width is "torn out" — the page-bg
+     shows through, creating the visual break. SVG mask is a triangle wave. */
+  -webkit-mask-image: var(--rip-mask);
+          mask-image: var(--rip-mask);
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  --rip-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 18' preserveAspectRatio='none'><path d='M0 0 H82 L80 4 L84 8 L80 12 L84 16 L82 18 H0 Z M88 0 H100 V18 H86 L88 16 L84 12 L88 8 L84 4 Z' fill='black'/></svg>");
 }
 
 /* Count */
