@@ -1758,28 +1758,49 @@ button.ghost.small {
  * Eurostar tab — trip log on left half, future content on right half
  * ============================================================================ */
 
-/* Make the Eurostar logo behave as a tab trigger */
-.loyalty-logo-btn {
+/* Right-box brand-style button — wordmark "Train Log" matching the
+   "Flight Log" style on the left. Acts as the tab trigger for the trains
+   panel. */
+.loyalty-brand-btn {
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 4px 10px;
+  padding: 6px 14px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  gap: 10px;
+  height: 54px;
   transition: background 120ms, border-color 120ms;
 }
-.loyalty-logo-btn:hover {
+.loyalty-brand-btn:hover {
   background: var(--bg-2);
   border-color: var(--accent-line);
 }
-.loyalty-logo-btn.active {
+.loyalty-brand-btn.active {
   background: var(--accent-soft);
   border-color: var(--accent-line);
 }
+.loyalty-brand-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  color: var(--accent);
+  background: linear-gradient(90deg, var(--accent) 0%, #1a8fd8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.brand-mark.train-mark {
+  font-size: 28px;
+  transform: none;  /* unlike the airplane, the train glyph stays upright */
+}
 
 /* Page layout: left half = trips, right half = reserved */
-.eurostar-root {
+.train-root {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 24px;
@@ -1787,45 +1808,45 @@ button.ghost.small {
   max-width: 1600px;
   margin: 0 auto;
 }
-.eurostar-left,
-.eurostar-right {
+.train-left,
+.train-right {
   background: var(--bg-1);
   border: 1px solid var(--accent-line);
   border-radius: 10px;
   min-height: 500px;
 }
-.eurostar-left { display: flex; flex-direction: column; }
+.train-left { display: flex; flex-direction: column; }
 
-.eurostar-head {
+.train-head {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--bg-2);
 }
-.eurostar-head h2 {
+.train-head h2 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
   color: var(--fg-0);
   letter-spacing: -0.01em;
 }
-.eurostar-summary {
+.train-summary {
   margin: 0;
   font-size: 12px;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
 }
 
-.eurostar-table-wrap {
+.train-table-wrap {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.eurostar-thead {
+.train-thead {
   display: grid;
-  grid-template-columns: 130px 1fr 90px 50px;
+  grid-template-columns: 80px 130px 1fr 90px 50px;
   gap: 8px;
   padding: 10px 20px;
   background: var(--bg-2);
@@ -1836,37 +1857,53 @@ button.ghost.small {
   text-transform: none;
   color: var(--fg-1);
 }
-.es-th { display: flex; align-items: center; }
-.es-col-points { justify-content: flex-end; }
-.es-col-actions { justify-content: flex-end; }
+.tt-th { display: flex; align-items: center; }
+.tt-col-points { justify-content: flex-end; }
+.tt-col-actions { justify-content: flex-end; }
 
-.eurostar-tbody {
+.train-tbody {
   flex: 1;
   overflow-y: auto;
   padding: 0 20px;
 }
-.es-tr {
+.tt-tr {
   display: grid;
-  grid-template-columns: 130px 1fr 90px 50px;
+  grid-template-columns: 80px 130px 1fr 90px 50px;
   gap: 8px;
   padding: 10px 0;
   border-bottom: 1px solid var(--bg-2);
   align-items: center;
   font-variant-numeric: tabular-nums;
 }
-.es-tr:hover { background: var(--bg-2); }
-.es-td { display: flex; align-items: center; }
+.tt-tr:hover { background: var(--bg-2); }
+.tt-td { display: flex; align-items: center; }
 
-.es-col-date {
+/* Operator logo cell (leftmost column in trip rows) */
+.tt-col-op {
+  justify-content: flex-start;
+}
+.tt-op-logo {
+  max-height: 24px;
+  max-width: 70px;
+  object-fit: contain;
+  display: block;
+}
+.tt-op-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-1);
+}
+
+.tt-col-date {
   flex-direction: column;
   align-items: flex-start;
 }
-.es-date-main {
+.tt-date-main {
   font-size: 13px;
   font-weight: 500;
   color: var(--fg-0);
 }
-.es-date-sub {
+.tt-date-sub {
   font-size: 11px;
   color: var(--fg-3);
   font-style: italic;
@@ -1874,26 +1911,26 @@ button.ghost.small {
   margin-top: 1px;
 }
 
-.es-col-route {
+.tt-col-route {
   font-size: 14px;
   color: var(--fg-1);
 }
-.es-from, .es-to { font-weight: 500; }
-.es-arrow {
+.tt-from, .tt-to { font-weight: 500; }
+.tt-arrow {
   color: var(--fg-3);
   margin: 0 8px;
   font-weight: 400;
 }
 
-.es-tr .es-col-points {
+.tt-tr .tt-col-points {
   justify-content: flex-end;
   font-weight: 600;
   color: var(--accent);
   font-size: 14px;
 }
 
-.es-col-actions { justify-content: flex-end; }
-.es-action-btn {
+.tt-col-actions { justify-content: flex-end; }
+.tt-action-btn {
   background: transparent;
   border: 1px solid transparent;
   color: var(--fg-3);
@@ -1907,65 +1944,65 @@ button.ghost.small {
   justify-content: center;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
-.es-action-btn:hover {
+.tt-action-btn:hover {
   color: var(--accent);
   background: var(--accent-soft);
   border-color: var(--accent-line);
 }
 
-.eurostar-empty {
+.train-empty {
   padding: 40px 20px;
   text-align: center;
   color: var(--fg-3);
   font-style: italic;
 }
 
-.eurostar-modal { max-width: 460px; }
+.train-edit-modal { max-width: 460px; }
 
 /* Stack the two halves on narrow screens */
 @media (max-width: 900px) {
-  .eurostar-root {
+  .train-root {
     grid-template-columns: 1fr;
     padding: 16px;
   }
-  .eurostar-thead,
-  .es-tr {
-    grid-template-columns: 110px 1fr 70px 40px;
+  .train-thead,
+  .tt-tr {
+    grid-template-columns: 60px 110px 1fr 70px 40px;
   }
 }
 
 /* ============================================================================
  * Eurostar — add-trip form (right side)
  * ============================================================================ */
-.es-form {
+.train-form {
   padding: 18px 20px 20px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.es-form-row {
+.train-form-row {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr 0.9fr auto;
   gap: 12px;
   align-items: end;
 }
 
-.es-form-field {
+.train-form-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   min-width: 0;
 }
-.es-form-field label {
+.train-form-field label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-2);
 }
-.es-form-field input,
-.es-form-field select {
+.train-form-field input,
+.train-form-field select {
   height: 36px;
   padding: 0 10px;
   border: 1px solid var(--border-strong, #c8d3df);
@@ -1977,33 +2014,33 @@ button.ghost.small {
   font-variant-numeric: tabular-nums;
   transition: border-color 120ms, box-shadow 120ms;
 }
-.es-form-field input:focus,
-.es-form-field select:focus {
+.train-form-field input:focus,
+.train-form-field select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 /* Error state — red border that stays until the user touches the field */
-.es-form-field input.error,
-.es-form-field select.error {
+.train-form-field input.error,
+.train-form-field select.error {
   border-color: var(--danger, #c0392b);
   background: #fff5f5;
 }
-.es-form-field input.error:focus,
-.es-form-field select.error:focus {
+.train-form-field input.error:focus,
+.train-form-field select.error:focus {
   box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15);
 }
 
-.es-form-action {
+.train-form-action {
   /* Button aligns with the bottom of the inputs */
 }
-.es-form-action .primary {
+.train-form-action .primary {
   height: 36px;
   white-space: nowrap;
 }
 
-.es-form-error {
+.train-form-error {
   margin: 0;
   font-size: 12px;
   color: var(--danger, #c0392b);
@@ -2012,19 +2049,19 @@ button.ghost.small {
 
 /* On narrow screens, stack the fields vertically and let the button fill */
 @media (max-width: 1100px) {
-  .es-form-row {
+  .train-form-row {
     grid-template-columns: 1fr 1fr;
   }
-  .es-form-action {
+  .train-form-action {
     grid-column: 1 / -1;
   }
-  .es-form-action .primary { width: 100%; }
+  .train-form-action .primary { width: 100%; }
 }
 
 /* ============================================================================
  * Eurostar — right side: stacked add-card and progress-card
  * ============================================================================ */
-.eurostar-right {
+.train-right {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2032,24 +2069,24 @@ button.ghost.small {
   border: none;
   min-height: 500px;
 }
-.es-add-card,
-.es-progress-card {
+.train-add-card,
+.train-status-card {
   background: var(--bg-1);
   border: 1px solid var(--accent-line);
   border-radius: 10px;
   overflow: hidden;
 }
 
-/* The form card is now compact — no internal padding doubled by .es-form */
-.es-add-card .es-form {
+/* The form card is now compact — no internal padding doubled by .train-form */
+.train-add-card .train-form {
   padding: 14px 20px 18px;
 }
 
 /* Progress card layout */
-.es-progress-card {
+.train-status-card {
   flex: 1;
 }
-.es-progress-body {
+.train-prog-body-old {
   padding: 22px 20px 20px;
   display: flex;
   flex-direction: column;
@@ -2058,11 +2095,11 @@ button.ghost.small {
 
 /* The bar wrapper allows the fill to extend past 100% (when over target).
    The track itself stays at 100% width and represents 0..5000. */
-.es-progress-bar-wrap {
+.train-prog-bar-wrap {
   position: relative;
   padding-bottom: 28px;  /* reserve space for axis ticks below */
 }
-.es-progress-track {
+.train-track {
   position: relative;
   height: 28px;
   background: var(--bg-2);
@@ -2070,7 +2107,7 @@ button.ghost.small {
   border-radius: 6px;
   overflow: visible;     /* allow fill to spill past on overshoot */
 }
-.es-progress-fill {
+.train-fill {
   position: absolute;
   left: 0;
   top: -1px;
@@ -2080,7 +2117,7 @@ button.ghost.small {
   border-radius: 6px;
   transition: width 350ms ease-out;
 }
-.es-progress-pct {
+.train-pct {
   position: absolute;
   left: 10px;
   top: 50%;
@@ -2092,23 +2129,23 @@ button.ghost.small {
   z-index: 2;
   transition: color 200ms;
 }
-.es-progress-pct.on-fill {
+.train-pct.on-fill {
   color: #ffffff;
 }
 
 /* Axis under the track */
-.es-progress-axis {
+.train-prog-axis-old {
   position: absolute;
   left: 0;
   right: 0;
   top: 32px;
   height: 16px;
 }
-.es-axis-tick {
+.train-axis-tick-old {
   position: absolute;
   top: 0;
 }
-.es-axis-tick::before {
+.train-axis-tick-old::before {
   content: "";
   position: absolute;
   top: -8px;
@@ -2117,9 +2154,9 @@ button.ghost.small {
   height: 6px;
   background: var(--fg-3);
 }
-.es-axis-tick:first-child::before { left: 0; }
-.es-axis-tick:last-child::before { left: 100%; transform: translateX(-1px); }
-.es-axis-num {
+.train-axis-tick-old:first-child::before { left: 0; }
+.train-axis-tick-old:last-child::before { left: 100%; transform: translateX(-1px); }
+.train-axis-num-old {
   position: absolute;
   top: 0;
   font-size: 11px;
@@ -2128,33 +2165,271 @@ button.ghost.small {
   white-space: nowrap;
   transform: translateX(-50%);
 }
-.es-axis-tick:first-child .es-axis-num { transform: translateX(0); }
-.es-axis-tick:last-child .es-axis-num { transform: translateX(-100%); }
+.train-axis-tick-old:first-child .train-axis-num-old { transform: translateX(0); }
+.train-axis-tick-old:last-child .train-axis-num-old { transform: translateX(-100%); }
 
 /* Total points label, shown below the bar */
-.es-progress-total {
+.train-prog-total {
   font-size: 14px;
   font-weight: 600;
   color: var(--fg-1);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
-.es-progress-total.at-target {
+.train-prog-total.at-target {
   color: var(--accent);
 }
 
 /* Head with title + subtitle window label, plus a settings button on the right */
-.eurostar-head-titlewrap {
+.train-head-titlewrap {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.es-progress-window-label {
+.train-prog-window {
   font-size: 12px;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
   font-weight: 400;
 }
-.es-progress-card .eurostar-head {
+.train-status-card .train-head {
   align-items: flex-start;
+}
+
+/* ============================================================================
+ * Train Log — custom logo dropdown (operator picker in add-trip form)
+ * ============================================================================ */
+.train-form-field-op {
+  position: relative;
+}
+.logo-dropdown {
+  position: relative;
+  height: 36px;
+  min-width: 0;
+  border: 1px solid var(--border-strong, #c8d3df);
+  border-radius: 6px;
+  background: var(--bg-1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0 28px 0 8px;
+  transition: border-color 120ms, box-shadow 120ms;
+  user-select: none;
+  outline: none;
+}
+.logo-dropdown:focus,
+.logo-dropdown.open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.logo-dropdown.error {
+  border-color: var(--danger, #c0392b);
+  background: #fff5f5;
+}
+.logo-dropdown-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--fg-0);
+}
+.logo-dropdown-current img {
+  max-height: 22px;
+  max-width: 60px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.logo-dropdown-name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.logo-dropdown-arrow {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-3);
+  font-size: 11px;
+  pointer-events: none;
+  transition: transform 150ms;
+}
+.logo-dropdown.open .logo-dropdown-arrow {
+  transform: translateY(-50%) rotate(180deg);
+}
+
+.logo-dropdown-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(15, 30, 50, 0.12);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 100;
+  display: none;
+}
+.logo-dropdown.open .logo-dropdown-list {
+  display: block;
+}
+.logo-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--fg-0);
+  transition: background 100ms;
+}
+.logo-dropdown-item:hover {
+  background: var(--accent-soft);
+}
+.logo-dropdown-item img {
+  max-height: 24px;
+  max-width: 70px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.logo-dropdown-item .logo-dropdown-name {
+  font-weight: 400;
+}
+
+/* ============================================================================
+ * Train Log — three stacked status bars (right-side bottom card)
+ * ============================================================================ */
+.train-status-card {
+  display: flex;
+  flex-direction: column;
+}
+.train-status-list {
+  padding: 18px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+.train-prog {
+  --prog-accent: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.train-prog-head {
+  display: grid;
+  grid-template-columns: 90px 1fr auto auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.train-prog-logo {
+  max-height: 28px;
+  max-width: 86px;
+  object-fit: contain;
+  justify-self: start;
+}
+.train-prog-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--fg-0);
+}
+.train-prog-window {
+  font-size: 11px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+  justify-self: end;
+  white-space: nowrap;
+}
+.train-prog .rollover-btn {
+  background: var(--prog-accent);
+}
+
+/* Bar wrap: holds the track. Axis sits below it. */
+.train-prog-bar-wrap {
+  position: relative;
+}
+.train-track {
+  position: relative;
+  height: 24px;
+  background: var(--bg-2);
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
+  overflow: visible;
+}
+.train-fill {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  bottom: -1px;
+  width: 0%;
+  background: linear-gradient(90deg, var(--prog-accent) 0%, color-mix(in srgb, var(--prog-accent) 70%, white) 100%);
+  border-radius: 5px;
+  transition: width 350ms ease-out;
+}
+.train-pct {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+  z-index: 2;
+  transition: color 200ms;
+}
+.train-pct.on-fill {
+  color: #ffffff;
+}
+
+/* Axis ticks below the track */
+.train-prog-axis {
+  position: relative;
+  height: 18px;
+  margin-top: 2px;
+}
+.train-axis-tick {
+  position: absolute;
+  top: 0;
+}
+.train-axis-tick::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 1px;
+  height: 5px;
+  background: var(--fg-3);
+}
+.train-axis-tick.last::before { left: 100%; transform: translateX(-1px); }
+.train-axis-num {
+  position: absolute;
+  top: 4px;
+  font-size: 10px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.train-axis-tick.first .train-axis-num { transform: translateX(0); }
+.train-axis-tick.last  .train-axis-num { transform: translateX(-100%); }
+
+.train-prog-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.train-prog-total.at-target {
+  color: var(--prog-accent);
 }

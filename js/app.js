@@ -9,7 +9,7 @@ import { initLog, openManageAirports } from './log.js';
 import { initStats } from './stats.js';
 import { initMap } from './map.js';
 import { initStatus } from './status.js';
-import { initEurostar } from './eurostar.js';
+import { initTrain } from './train.js';
 
 // ---------- Settings (localStorage-backed) ----------
 const SETTINGS_KEY = 'flightlog.settings.v1';
@@ -176,4 +176,4 @@ initLog();
 initStats();
 initMap();
 initStatus();
-initEurostar();
+initTrain();
