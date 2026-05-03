@@ -62,52 +62,124 @@ body { display: flex; flex-direction: column; }
 
 /* ---------- Topbar ---------- */
 .topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--topbar-h);
-  padding: 0 20px;
   background: var(--bg-1);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 50;
 }
-.brand { display: flex; align-items: baseline; gap: 9px; }
+
+/* Two boxes side by side, divider at 50% of page width */
+.header-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  min-height: 78px;
+}
+.header-box {
+  display: flex;
+  align-items: center;
+  padding: 12px 24px;
+  gap: 24px;
+}
+.brand-box {
+  border-right: 1px solid var(--border);
+  justify-content: flex-start;
+}
+.loyalty-box {
+  justify-content: space-between;
+  position: relative;
+}
+
+/* ---------- Brand wordmark ---------- */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  padding-right: 18px;
+  border-right: 1px solid var(--bg-2);
+  margin-right: 6px;
+  height: 54px;
+}
 .brand-mark {
   color: var(--accent);
-  font-size: 18px;
-  transform: translateY(2px);
+  font-size: 32px;
+  line-height: 1;
+  transform: rotate(-12deg) translateY(-1px);
+  display: inline-block;
 }
 .brand h1 {
   font-family: var(--sans);
-  font-weight: 600;
-  font-size: 19px;
-  letter-spacing: -0.005em;
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
   margin: 0;
   color: var(--accent);
+  background: linear-gradient(90deg, var(--accent) 0%, #1a8fd8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-/* ---------- Tabs ---------- */
-.tabs { display: flex; gap: 2px; }
+/* ---------- Tab buttons (icon + label, image-driven) ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
 .tabs button {
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--fg-1);
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.02em;
-  padding: 7px 14px;
-  border-radius: 4px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: color 100ms, background 100ms;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 100ms, background 100ms, border-color 100ms;
 }
-.tabs button:hover { color: var(--accent); background: var(--bg-2); }
+.tabs button:hover {
+  color: var(--accent);
+  background: var(--bg-2);
+}
 .tabs button.active {
   color: var(--accent);
   background: var(--accent-soft);
+  border-color: var(--accent-line);
   font-weight: 600;
+}
+.tab-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  /* The uploaded icons are pure black on white. Convert to neutral gray
+     by default, and to the accent blue on active/hover, so they fit the
+     palette without redrawing them. */
+  filter: invert(35%) sepia(8%) saturate(0%) brightness(95%);
+  transition: filter 120ms;
+}
+.tabs button:hover .tab-icon,
+.tabs button.active .tab-icon {
+  /* Outlook blue (~#0078d4) approximation via filter */
+  filter: invert(33%) sepia(98%) saturate(1853%) hue-rotate(186deg) brightness(96%) contrast(101%);
+}
+.tab-label {
+  font-size: 13px;
+}
+
+/* ---------- Loyalty (right) box ---------- */
+.loyalty-logo {
+  max-height: 44px;
+  max-width: 240px;
+  object-fit: contain;
+  display: block;
 }
 
 /* ---------- Generic buttons ---------- */
@@ -1178,10 +1250,16 @@ button.ghost.danger:hover { color: var(--danger); border-color: var(--danger); b
   .log-root { border-right: none; }
 }
 @media (max-width: 720px) {
-  .topbar { padding: 0 12px; gap: 8px; height: 48px; }
-  .brand h1 { font-size: 16px; }
-  .tabs { overflow-x: auto; flex: 1; justify-content: flex-end; }
-  .tabs button { padding: 5px 9px; font-size: 11px; }
+  /* Stack the two boxes vertically on phones */
+  .header-grid { grid-template-columns: 1fr; min-height: 0; }
+  .brand-box { border-right: none; border-bottom: 1px solid var(--border); }
+  .header-box { padding: 10px 14px; gap: 12px; flex-wrap: wrap; }
+  .brand { padding-right: 12px; height: 44px; }
+  .brand-mark { font-size: 26px; }
+  .brand h1 { font-size: 20px; }
+  .tab-label { display: none; }
+  .tabs button { padding: 6px 8px; }
+  .loyalty-logo { max-height: 32px; max-width: 160px; }
   .panel { padding: 14px; }
   .placeholder { margin: 30px auto; }
   .placeholder h2 { font-size: 26px; }

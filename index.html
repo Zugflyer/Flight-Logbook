@@ -26,18 +26,37 @@
 
   <!-- App shell -->
   <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark">✈</span>
-      <h1>Flight&nbsp;Log</h1>
-    </div>
-    <nav class="tabs" id="tabs">
-      <button data-tab="log" class="active">Log</button>
-      <button data-tab="map">Map</button>
-      <button data-tab="status">Status</button>
-    </nav>
-    <div class="actions">
-      <button id="auth-btn" class="ghost">Sign in</button>
-      <button id="settings-btn" class="ghost" aria-label="Settings">⚙</button>
+    <div class="header-grid">
+
+      <div class="header-box brand-box">
+        <div class="brand">
+          <span class="brand-mark">✈</span>
+          <h1>Flight<span class="brand-amp">&nbsp;</span>Log</h1>
+        </div>
+        <nav class="tabs" id="tabs">
+          <button data-tab="log" class="active" title="Log">
+            <img src="assets/icons/log.png" alt="" class="tab-icon">
+            <span class="tab-label">Log</span>
+          </button>
+          <button data-tab="map" title="Map">
+            <img src="assets/icons/map.png" alt="" class="tab-icon">
+            <span class="tab-label">Map</span>
+          </button>
+          <button data-tab="status" title="Status">
+            <img src="assets/icons/status.png" alt="" class="tab-icon">
+            <span class="tab-label">Status</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="header-box loyalty-box">
+        <img class="loyalty-logo" src="assets/logos/eurostar.png" alt="Eurostar">
+        <div class="actions">
+          <button id="auth-btn" class="ghost">Sign in</button>
+          <button id="settings-btn" class="ghost" aria-label="Settings">⚙</button>
+        </div>
+      </div>
+
     </div>
   </header>
 
