@@ -2316,13 +2316,18 @@ button.ghost.small {
   padding: 18px 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
 }
 .train-prog {
   --prog-accent: var(--accent);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+/* Light separator line between programs */
+.train-prog + .train-prog {
+  border-top: 1px solid var(--accent-line);
+  padding-top: 18px;
 }
 .train-prog-head {
   display: grid;
@@ -2391,11 +2396,11 @@ button.ghost.small {
   color: #ffffff;
 }
 
-/* Axis ticks below the track */
+/* Axis ticks below the track — sits as close to the bar as possible */
 .train-prog-axis {
   position: relative;
-  height: 18px;
-  margin-top: 2px;
+  height: 14px;
+  margin-top: 0;
 }
 .train-axis-tick {
   position: absolute;
@@ -2404,10 +2409,10 @@ button.ghost.small {
 .train-axis-tick::before {
   content: "";
   position: absolute;
-  top: -4px;
+  top: 0;
   left: 0;
   width: 1px;
-  height: 5px;
+  height: 4px;
   background: var(--fg-3);
 }
 .train-axis-tick.last::before { left: 100%; transform: translateX(-1px); }
