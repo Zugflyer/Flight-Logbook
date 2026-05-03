@@ -1897,3 +1897,90 @@ button.ghost.small {
     grid-template-columns: 110px 1fr 70px 40px;
   }
 }
+
+/* ============================================================================
+ * Eurostar — add-trip form (right side)
+ * ============================================================================ */
+.es-form {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.es-form-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr 0.9fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.es-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.es-form-field label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-2);
+}
+.es-form-field input,
+.es-form-field select {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong, #c8d3df);
+  border-radius: 6px;
+  background: var(--bg-1);
+  color: var(--fg-0);
+  font-family: var(--sans);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.es-form-field input:focus,
+.es-form-field select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Error state — red border that stays until the user touches the field */
+.es-form-field input.error,
+.es-form-field select.error {
+  border-color: var(--danger, #c0392b);
+  background: #fff5f5;
+}
+.es-form-field input.error:focus,
+.es-form-field select.error:focus {
+  box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.15);
+}
+
+.es-form-action {
+  /* Button aligns with the bottom of the inputs */
+}
+.es-form-action .primary {
+  height: 36px;
+  white-space: nowrap;
+}
+
+.es-form-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--danger, #c0392b);
+  min-height: 16px;
+}
+
+/* On narrow screens, stack the fields vertically and let the button fill */
+@media (max-width: 1100px) {
+  .es-form-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .es-form-action {
+    grid-column: 1 / -1;
+  }
+  .es-form-action .primary { width: 100%; }
+}

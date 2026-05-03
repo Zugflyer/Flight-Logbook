@@ -7,7 +7,13 @@
 // will be added next.
 // ============================================================================
 
-import { store, onChange, updateEurostarTrip, deleteEurostarTrip } from './data.js';
+import { store, onChange, addEurostarTrip, updateEurostarTrip, deleteEurostarTrip } from './data.js';
+
+// Cities in the dropdowns. The order is intentional and asymmetric: in the
+// FROM list, Paris is first (most flights start there); in the TO list,
+// London is first.
+const CITIES_FROM = ['Paris', 'London', 'Bruxelles', 'Amsterdam'];
+const CITIES_TO   = ['London', 'Paris', 'Bruxelles', 'Amsterdam'];
 
 let mounted = null;
 
@@ -33,7 +39,39 @@ export function initEurostar() {
         </div>
       </section>
       <section class="eurostar-right" id="eurostar-right">
-        <!-- Reserved for future content -->
+        <header class="eurostar-head">
+          <h2>Add trip</h2>
+          <p class="eurostar-summary">Today and recent</p>
+        </header>
+        <form class="es-form" id="es-form" autocomplete="off">
+          <div class="es-form-row">
+            <div class="es-form-field">
+              <label for="es-form-date">Date</label>
+              <input type="date" id="es-form-date" required>
+            </div>
+            <div class="es-form-field">
+              <label for="es-form-from">From</label>
+              <select id="es-form-from" required>
+                ${CITIES_FROM.map(c => `<option value="${c}">${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="es-form-field">
+              <label for="es-form-to">To</label>
+              <select id="es-form-to" required>
+                ${CITIES_TO.map(c => `<option value="${c}">${c}</option>`).join('')}
+              </select>
+            </div>
+            <div class="es-form-field">
+              <label for="es-form-points">Points</label>
+              <input type="number" id="es-form-points" min="0" step="1" inputmode="numeric" list="es-points-suggestions" required>
+              <datalist id="es-points-suggestions"></datalist>
+            </div>
+            <div class="es-form-action">
+              <button type="submit" class="primary" id="es-form-submit">Add to logbook</button>
+            </div>
+          </div>
+          <p class="es-form-error" id="es-form-error"></p>
+        </form>
       </section>
     </div>
   `;
@@ -45,7 +83,132 @@ export function initEurostar() {
     }
   });
 
+  initAddForm();
+
   if (store.ready) render();
+}
+
+// ============================================================
+// Add-trip form (right side)
+// ============================================================
+function todayIso() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function shiftDateIso(iso, days) {
+  if (!iso) return todayIso();
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function initAddForm() {
+  const $form = document.getElementById('es-form');
+  if (!$form) return;
+  const $date = document.getElementById('es-form-date');
+  const $from = document.getElementById('es-form-from');
+  const $to = document.getElementById('es-form-to');
+  const $points = document.getElementById('es-form-points');
+  const $error = document.getElementById('es-form-error');
+  const $submit = document.getElementById('es-form-submit');
+
+  // Prefill today
+  $date.value = todayIso();
+
+  // Arrow keys on the date field shift by ±1 day. The native date input does
+  // increment when focused on the day part, but the behavior is inconsistent
+  // across browsers / focus states — this makes it reliable.
+  $date.addEventListener('keydown', e => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      $date.value = shiftDateIso($date.value, 1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      $date.value = shiftDateIso($date.value, -1);
+    }
+  });
+
+  // Clear the red "missing" highlight on a field as soon as the user
+  // interacts with it, so they get instant feedback.
+  for (const el of [$date, $from, $to, $points]) {
+    const clear = () => el.classList.remove('error');
+    el.addEventListener('input', clear);
+    el.addEventListener('change', clear);
+    el.addEventListener('focus', clear);
+  }
+
+  $form.addEventListener('submit', async e => {
+    e.preventDefault();
+    $error.textContent = '';
+
+    // Validate. Mark every empty field; do NOT submit if anything is missing.
+    let firstMissing = null;
+    const check = (el, ok) => {
+      if (!ok) {
+        el.classList.add('error');
+        if (!firstMissing) firstMissing = el;
+      } else {
+        el.classList.remove('error');
+      }
+    };
+    check($date, !!$date.value);
+    check($from, !!$from.value);
+    check($to, !!$to.value);
+    check($points, $points.value !== '' && !isNaN(Number($points.value)));
+
+    if (firstMissing) {
+      $error.textContent = 'Please fill in all fields.';
+      firstMissing.focus();
+      return;
+    }
+    if ($from.value === $to.value) {
+      $to.classList.add('error');
+      $error.textContent = 'From and To must differ.';
+      $to.focus();
+      return;
+    }
+
+    $submit.disabled = true;
+    try {
+      await addEurostarTrip({
+        date: $date.value,
+        from_station: $from.value,
+        to_station: $to.value,
+        points: parseInt($points.value, 10),
+      });
+      // Reset for next entry: keep today's date, default the cities to their
+      // first option, clear points.
+      $date.value = todayIso();
+      $from.value = CITIES_FROM[0];
+      $to.value = CITIES_TO[0];
+      $points.value = '';
+      $points.focus();
+    } catch (err) {
+      $error.textContent = 'Save failed: ' + (err.message || err);
+    } finally {
+      $submit.disabled = false;
+    }
+  });
+}
+
+// Build the points-suggestions datalist from previously entered values.
+// Called from render() so it stays current as the user adds trips.
+function refreshPointsSuggestions() {
+  const $list = document.getElementById('es-points-suggestions');
+  if (!$list) return;
+  const seen = new Set();
+  for (const t of store.eurostarTrips || []) {
+    if (t.points != null) seen.add(Number(t.points));
+  }
+  const sorted = [...seen].sort((a, b) => a - b);
+  $list.innerHTML = sorted.map(n => `<option value="${n}">`).join('');
 }
 
 // ============================================================
@@ -53,6 +216,7 @@ export function initEurostar() {
 // ============================================================
 function render() {
   if (!mounted) return;
+  refreshPointsSuggestions();
   const trips = store.eurostarTrips || [];
   const total = trips.reduce((s, t) => s + (Number(t.points) || 0), 0);
 
