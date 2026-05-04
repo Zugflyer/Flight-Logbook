@@ -65,6 +65,7 @@ export function initLog() {
           <div class="th col-cabin" data-sort="cabin">Cabin <span class="caret"></span></div>
           <div class="th col-tier" data-sort="tier_miles">Tier <span class="caret"></span></div>
           <div class="th col-date" data-sort="date">Date <span class="caret"></span></div>
+          <div class="th col-credit"></div>
         </div>
         <div class="log-tbody-scroll" id="tbody-scroll">
           <div class="log-tbody-spacer" id="tbody-spacer"></div>
@@ -285,11 +286,28 @@ function render(layoutOnly = false) {
   $tbody.innerHTML = slice.map(rowHtml).join('');
 
   // Wire row clicks for opening edit modal — but NOT when the click is on
-  // an airline-cell (those handle their own upload click).
+  // an airline-cell (those handle their own upload click) or the credit
+  // tick button.
   $tbody.querySelectorAll('.tr').forEach(el => {
     el.addEventListener('click', (e) => {
-      if (e.target.closest('.airline-cell')) return;  // airline cell handles itself
+      if (e.target.closest('.airline-cell')) return;
+      if (e.target.closest('.credit-tick')) return;
       openModal(el.dataset.id);
+    });
+  });
+
+  // Wire credit-tick: marks the flight as credited and removes the frame.
+  $tbody.querySelectorAll('.credit-tick').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      btn.disabled = true;
+      try {
+        await updateFlight(id, { credited: true });
+      } catch (err) {
+        btn.disabled = false;
+        alert('Failed to mark credited: ' + (err.message || err));
+      }
     });
   });
 
@@ -316,13 +334,19 @@ function rowHtml(f) {
   // are still treated as "current" (not future).
   const todayStr = new Date().toISOString().slice(0, 10);
   const futureClass = (!isHistoric(f) && f.date && f.date > todayStr) ? ' future' : '';
+  // Uncredited flights: red frame + checkbox at the right end. Historic
+  // flights are exempt — they have nothing to credit.
+  const uncreditedClass = (!isHistoric(f) && f.credited === false) ? ' uncredited' : '';
+  const creditCell = (!isHistoric(f) && f.credited === false)
+    ? `<button class="credit-tick" data-id="${f.id}" title="Mark credited" aria-label="Mark credited">☐</button>`
+    : '';
   const eqp = aircraftCode(f.aircraft);
   const dateCell = isHistoric(f)
     ? `<div class="date-historic">Pre-2012</div>`
     : `<div class="date-main">${formatDate(f.date)}</div>
        <div class="date-sub">${f.date.slice(0, 4)}</div>`;
   return `
-    <div class="tr${flashClass}${historicClass}${futureClass}" data-id="${f.id}" style="height:${ROW_HEIGHT}px">
+    <div class="tr${flashClass}${historicClass}${futureClass}${uncreditedClass}" data-id="${f.id}" style="height:${ROW_HEIGHT}px">
       <div class="td col-logo">${airlineLogoHtml(f.airline)}</div>
       <div class="td col-eqp"><span class="eqp-code">${escapeHtml(eqp || '—')}</span></div>
       <div class="td col-route">
@@ -333,6 +357,7 @@ function rowHtml(f) {
       <div class="td col-cabin">${cabinPill(f.cabin)}</div>
       <div class="td col-tier">${f.tier_miles?.toLocaleString() || '—'}</div>
       <div class="td col-date">${dateCell}</div>
+      <div class="td col-credit">${creditCell}</div>
     </div>
   `;
 }
