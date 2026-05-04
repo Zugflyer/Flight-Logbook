@@ -67,7 +67,12 @@ const PROGRAMS = [
   },
 ];
 
-const FFP_VISUAL_CAP = 1.3;  // bar can extend up to 130% of track width
+// The visible track represents 0 → AXIS_MULTIPLIER × final_target. So a bar
+// at 100% of target sits at ~67% of the visible width, with room beyond for
+// gracefully showing overshoot without spilling out of the card. If the
+// total is so high it would still exceed the wider visible range, the bar
+// is clipped at 100% and a zig-zag rip overlay signals the truncation.
+const AXIS_MULTIPLIER = 1.5;
 
 let mounted = null;
 
@@ -513,12 +518,16 @@ function renderProgramBar(program, total) {
   const $wrap = document.getElementById(`train-prog-bar-${program.id}`);
   if (!$wrap) return;
   const finalTarget = program.targets[program.targets.length - 1];
-  const fraction = total / finalTarget;
-  const widthPct = Math.min(fraction, FFP_VISUAL_CAP) * 100;
+  const visibleMax = finalTarget * AXIS_MULTIPLIER;
+  const fraction = total / finalTarget;     // for the % label (over target)
+  const visibleFraction = total / visibleMax;
+  const truncated = visibleFraction > 1;
+  const widthPct = Math.min(visibleFraction, 1) * 100;
   const pct = Math.round(fraction * 100);
+  const fillClass = truncated ? 'train-fill train-fill-truncated' : 'train-fill';
   $wrap.innerHTML = `
     <div class="train-track">
-      <div class="train-fill" style="width: ${widthPct.toFixed(2)}%"></div>
+      <div class="${fillClass}" style="width: ${widthPct.toFixed(2)}%"></div>
       <span class="train-pct ${widthPct > 18 ? 'on-fill' : ''}">${pct}%</span>
     </div>
   `;
@@ -528,12 +537,13 @@ function renderProgramAxis(program) {
   const $axis = document.getElementById(`train-prog-axis-${program.id}`);
   if (!$axis) return;
   const finalTarget = program.targets[program.targets.length - 1];
+  const visibleMax = finalTarget * AXIS_MULTIPLIER;
   const ticks = [{ value: 0, pct: 0 }];
   for (const t of program.targets) {
-    ticks.push({ value: t, pct: (t / finalTarget) * 100 });
+    ticks.push({ value: t, pct: (t / visibleMax) * 100 });
   }
   $axis.innerHTML = ticks.map((t, i) => {
-    const cls = i === 0 ? 'first' : (i === ticks.length - 1 ? 'last' : 'mid');
+    const cls = i === 0 ? 'first' : 'mid';
     return `<span class="train-axis-tick train-axis-${cls}" style="left: ${t.pct.toFixed(2)}%">
               <span class="train-axis-num">${t.value.toLocaleString()}</span>
             </span>`;
