@@ -323,11 +323,12 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;          /* allow grid item to shrink narrower than content */
   background: var(--bg-1);
   border: 1px solid var(--accent-line);
   border-radius: 10px;
   overflow: hidden;
-  height: calc(100vh - 78px - 72px);  /* viewport minus header (78) minus our 24+48 padding */
+  height: calc(100vh - 78px - 72px);
   max-height: 880px;
 }
 
@@ -637,8 +638,23 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; height: 28px; }
 .log-table-wrap {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  overflow-x: auto;
+  /* Always show the scrollbar (vs Mac's auto-hide) so users can see they
+     can scroll horizontally on narrow viewports. */
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+}
+.log-table-wrap::-webkit-scrollbar { height: 10px; }
+.log-table-wrap::-webkit-scrollbar-track { background: var(--bg-2); }
+.log-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--accent-line);
+  border-radius: 5px;
+}
+.log-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-3);
 }
 .log-thead, .tr {
   display: grid;
@@ -653,6 +669,7 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; height: 28px; }
     32px;                 /* credit */
   align-items: center;
   gap: 10px;
+  min-width: 820px;       /* keep columns from collapsing on narrow viewports */
 }
 .log-thead {
   position: sticky;
@@ -719,12 +736,18 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; height: 28px; }
 .log-tbody-scroll {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: visible;       /* let rows extend; .log-table-wrap handles horizontal scroll */
   position: relative;
   padding: 0 20px;
+  min-width: 820px;          /* match the rows' min-width so content doesn't get clipped */
 }
 .log-tbody-spacer { width: 1px; }
-.log-tbody { position: absolute; top: 0; left: 20px; right: 20px; }
+.log-tbody {
+  position: absolute;
+  top: 0;
+  left: 20px;
+  right: 20px;                /* still hugs both edges of its (now wide-enough) parent */
+}
 
 .tr {
   border-bottom: 1px solid var(--border);
