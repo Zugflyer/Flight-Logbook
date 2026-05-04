@@ -194,7 +194,8 @@ function populateFilterOptions() {
   const $year = document.getElementById('mf-year');
   $year.innerHTML = '<option value="all">All years</option>' +
     years.map(y => `<option value="${y}">${y}</option>`).join('') +
-    (hasHistoric ? '<option value="historic">Pre-2012</option>' : '');
+    (hasHistoric ? '<option value="historic">Pre-2012</option>' : '') +
+    '<option value="dated">All dated (post-2012)</option>';
   $year.value = filters.year;
 
   const airlines = [...new Set(flights.map(f => f.airline).filter(Boolean))].sort();
@@ -224,6 +225,8 @@ function applyFilters() {
   let rows = store.flights || [];
   if (filters.year === 'historic') {
     rows = rows.filter(isHistoric);
+  } else if (filters.year === 'dated') {
+    rows = rows.filter(f => !isHistoric(f));
   } else if (filters.year !== 'all') {
     rows = rows.filter(f => !isHistoric(f) && f.date && f.date.startsWith(filters.year));
   }
@@ -291,17 +294,17 @@ function render() {
     summaryEl.textContent = `${flights.length.toLocaleString()} flights · ${routeMap.size} routes · ${apCount.size} airports`;
   }
 
-  // Determine which routes to draw + which airports to show
-  const maxRouteCount = Math.max(1, ...[...routeMap.values()].map(r => r.count));
+  // Determine which routes to draw + which airports to show.
+  // Lines are uniform: same width and same opacity for every route, regardless
+  // of how many flights have been flown on it. (When an airport is selected,
+  // its lines pop slightly via opacity to make the connectivity visible.)
   for (const r of routeMap.values()) {
     const isConnectedToSelected = !selectedAirport || r.from === selectedAirport || r.to === selectedAirport;
-    if (selectedAirport && !isConnectedToSelected) continue;  // hide unrelated routes
+    if (selectedAirport && !isConnectedToSelected) continue;
     const A = store.airports.get(r.from);
     const B = store.airports.get(r.to);
     if (!A || !B) continue;
-    const opacity = selectedAirport
-      ? Math.min(1, 0.5 + 0.5 * (r.count / maxRouteCount))   // boldened when filtering
-      : 0.18 + 0.62 * (r.count / maxRouteCount);
+    const opacity = selectedAirport ? 0.85 : 0.55;
     const arcPoints = greatCircle(A.lat, A.lon, B.lat, B.lon, 64);
     drawArc(arcPoints, opacity, r);
   }

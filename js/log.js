@@ -164,8 +164,9 @@ function populateFilterOptions() {
   }
   const $year = document.getElementById('f-year');
   const yearOptions = [...years].sort().reverse().map(y => `<option value="${y}">${y}</option>`).join('');
+  const datedOption = `<option value="dated">All dated (post-2012)</option>`;
   const historicOption = hasHistoric ? `<option value="historic">Pre-2012</option>` : '';
-  $year.innerHTML = `<option value="all">All years</option>${yearOptions}${historicOption}`;
+  $year.innerHTML = `<option value="all">All years</option>${datedOption}${yearOptions}${historicOption}`;
   $year.value = filters.year;
 
   const $airline = document.getElementById('f-airline');
@@ -181,6 +182,8 @@ function applyFilters() {
   let rows = store.flights;
   if (filters.year === 'historic') {
     rows = rows.filter(isHistoric);
+  } else if (filters.year === 'dated') {
+    rows = rows.filter(f => !isHistoric(f));
   } else if (filters.year !== 'all') {
     rows = rows.filter(f => !isHistoric(f) && f.date && f.date.startsWith(filters.year));
   }
@@ -246,11 +249,26 @@ function render(layoutOnly = false) {
 
   $spacer.style.height = (rows.length * ROW_HEIGHT) + 'px';
 
-  const totalDist = rows.reduce((s, f) => s + (settings.unit === 'mi' ? (f.distance_mi || 0) : (f.distance_km || 0)), 0);
-  const totalTier = rows.reduce((s, f) => s + (f.tier_miles || 0), 0);
-  $summary.textContent =
-    `${rows.length.toLocaleString()} flights · ${Math.round(totalDist).toLocaleString()} ${settings.unit}` +
-    (totalTier ? ` · ${totalTier.toLocaleString()} tier` : '');
+  // Counts and sums exclude historic flights (per spec) — they have no real
+  // date, distance, tier miles, or airline.
+  const datedRows = rows.filter(f => !isHistoric(f));
+  const totalDist = datedRows.reduce((s, f) => s + (settings.unit === 'mi' ? (f.distance_mi || 0) : (f.distance_km || 0)), 0);
+  const totalTier = datedRows.reduce((s, f) => s + (f.tier_miles || 0), 0);
+
+  // Airport count includes historic flights.
+  const airportCodes = new Set();
+  for (const f of rows) {
+    if (f.from_iata) airportCodes.add(f.from_iata);
+    if (f.to_iata)   airportCodes.add(f.to_iata);
+  }
+
+  const parts = [
+    `${datedRows.length.toLocaleString()} flights`,
+    `${Math.round(totalDist).toLocaleString()} ${settings.unit}`,
+  ];
+  if (totalTier) parts.push(`${totalTier.toLocaleString()} tier`);
+  parts.push(`${airportCodes.size.toLocaleString()} airports`);
+  $summary.textContent = parts.join(' · ');
 
   panel.querySelectorAll('.th[data-sort]').forEach(th => {
     th.classList.remove('sort-asc', 'sort-desc');
