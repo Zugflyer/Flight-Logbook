@@ -468,7 +468,7 @@ function drawArc(points, opacity, route) {
   for (const seg of segments) {
     const line = L.polyline(seg, {
       color: '#0078d4',
-      weight: 1.6,
+      weight: 1,
       opacity,
       lineCap: 'round',
       lineJoin: 'round',
