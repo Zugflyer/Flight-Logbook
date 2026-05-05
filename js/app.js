@@ -4,21 +4,12 @@
 // ============================================================================
 
 import { store, onChange, signIn, signOut, loadAll } from './data.js';
-import { DEFAULTS } from './config.js';
-import { initLog, openManageAirports } from './log.js';
+import { settings, saveSettings } from './settings.js';
+import { initLog, openManageAirports, openManageAircraft } from './log.js';
 import { initStats } from './stats.js';
 import { initMap } from './map.js';
 import { initStatus } from './status.js';
 import { initTrain } from './train.js';
-
-// ---------- Settings (localStorage-backed) ----------
-const SETTINGS_KEY = 'flightlog.settings.v1';
-function loadSettings() {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
-  catch { return { ...DEFAULTS }; }
-}
-function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
-export const settings = loadSettings();
 
 // ---------- Tabs ----------
 const panels = document.getElementById('panels');
@@ -140,6 +131,14 @@ manageAirportsBtn.addEventListener('click', () => {
   settingsModal.classList.add('hidden');
   openManageAirports();
 });
+
+const manageAircraftBtn = document.getElementById('manage-aircraft-btn');
+if (manageAircraftBtn) {
+  manageAircraftBtn.addEventListener('click', () => {
+    settingsModal.classList.add('hidden');
+    openManageAircraft();
+  });
+}
 
 // ---------- Auth state reflection ----------
 function reflectAuth() {
