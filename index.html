@@ -3423,13 +3423,21 @@ function updateRosterLines() {
     const ac = [leg.arr[3], leg.arr[4]];
     const mode = leg.surfaceMode || 'air';
     try {
-      const isDashed = (mode === 'ship' || mode === 'road');
       let line;
-      if (isDashed) {
+      
+      if (mode === 'ship' && leg.seaRouteWaypoints && leg.seaRouteWaypoints.length >= 2) {
+        // Use calculated sea route waypoints
+        line = L.polyline(leg.seaRouteWaypoints, {
+          color: '#4a9eda', weight: 2.5, opacity: 0.92, dashArray: '8, 6'
+        }).addTo(rosterMap);
+      } else if (mode === 'ship' || mode === 'road') {
+        // Dashed great circle for road, or ship without route yet
         line = drawDashedGeodesic(rosterMap, dc, ac, {
-          color: '#f85149', weight: 2.5, opacity: 0.92, dashArray: '8, 6', steps: 30
+          color: mode === 'ship' ? '#4a9eda' : '#f85149',
+          weight: 2.5, opacity: 0.92, dashArray: '8, 6', steps: 30
         });
       } else {
+        // Normal flight
         line = new L.Geodesic([[dc, ac]], { color: '#f85149', weight: 2.5, opacity: 0.92, steps: 12 }).addTo(rosterMap);
       }
       
@@ -3439,22 +3447,177 @@ function updateRosterLines() {
       dm.bindTooltip(`<b>${leg.dep[0]}</b> ${leg.dep[7]||leg.dep[2]}`, { direction: 'top' });
       am.bindTooltip(`${modeIcon}<b>${leg.arr[0]}</b> ${leg.arr[7]||leg.arr[2]}`, { direction: 'top' });
       rosterLayers.push(line, dm, am);
-    } catch(e) {}
+    } catch(e) { console.error('Route draw error:', e); }
   });
 }
 
 // Toggle surface mode for a leg (air/ship/road)
 function toggleSurfaceMode(idx, mode) {
   if (!legs[idx]) return;
+  const leg = legs[idx];
+  
   // If already this mode, switch back to air
-  if (legs[idx].surfaceMode === mode) {
-    legs[idx].surfaceMode = 'air';
+  if (leg.surfaceMode === mode) {
+    leg.surfaceMode = 'air';
+    leg.seaRouteWaypoints = null; // Clear cached route
   } else {
-    legs[idx].surfaceMode = mode;
+    leg.surfaceMode = mode;
+    
+    // For ship mode, calculate sea route
+    if (mode === 'ship' && leg.dep && leg.arr) {
+      calculateSeaRoute(idx, [leg.dep[4], leg.dep[3]], [leg.arr[4], leg.arr[3]]);
+    } else {
+      leg.seaRouteWaypoints = null;
+    }
   }
   renderLegs();
   if (rosterMap) updateRosterLines();
 }
+
+// ═══════════════════════════════════════════════════════════
+// SEA ROUTE CALCULATION (Eurostat Marnet)
+// ═══════════════════════════════════════════════════════════
+let _marnetNodes = null;
+let _marnetEdges = null;
+let _marnetLoading = false;
+let _marnetLoaded = false;
+
+async function loadMarnetData() {
+  if (_marnetLoaded || _marnetLoading) return;
+  _marnetLoading = true;
+  
+  try {
+    // Load nodes and edges from GitHub (ssroute/data-eurostat)
+    const baseUrl = 'https://raw.githubusercontent.com/ssroute/data-eurostat/main/data/';
+    const [nodesRes, edgesRes] = await Promise.all([
+      fetch(baseUrl + 'nodes.json'),
+      fetch(baseUrl + 'edges.json')
+    ]);
+    
+    if (!nodesRes.ok || !edgesRes.ok) throw new Error('Failed to load Marnet data');
+    
+    _marnetNodes = await nodesRes.json();
+    _marnetEdges = await edgesRes.json();
+    _marnetLoaded = true;
+    console.log('Loaded Marnet: ' + _marnetNodes.length + ' nodes, ' + _marnetEdges.length + ' edges');
+  } catch(e) {
+    console.error('Marnet load error:', e);
+  }
+  _marnetLoading = false;
+}
+
+// Find nearest node to a coordinate
+function findNearestNode(lon, lat) {
+  if (!_marnetNodes) return null;
+  let best = null, bestDist = Infinity;
+  for (const n of _marnetNodes) {
+    const d = Math.pow(n.lon - lon, 2) + Math.pow(n.lat - lat, 2);
+    if (d < bestDist) { bestDist = d; best = n; }
+  }
+  return best;
+}
+
+// Dijkstra shortest path
+function dijkstraSeaRoute(startId, endId) {
+  if (!_marnetNodes || !_marnetEdges) return null;
+  
+  // Build adjacency list
+  const adj = {};
+  for (const e of _marnetEdges) {
+    if (!adj[e.from]) adj[e.from] = [];
+    adj[e.from].push({ to: e.to, dist: e.length_nm });
+  }
+  
+  // Dijkstra
+  const dist = {};
+  const prev = {};
+  const visited = new Set();
+  dist[startId] = 0;
+  
+  const pq = [[0, startId]]; // [distance, nodeId]
+  
+  while (pq.length > 0) {
+    pq.sort((a, b) => a[0] - b[0]);
+    const [d, u] = pq.shift();
+    
+    if (visited.has(u)) continue;
+    visited.add(u);
+    
+    if (u === endId) break;
+    
+    for (const edge of (adj[u] || [])) {
+      const alt = d + edge.dist;
+      if (dist[edge.to] === undefined || alt < dist[edge.to]) {
+        dist[edge.to] = alt;
+        prev[edge.to] = u;
+        pq.push([alt, edge.to]);
+      }
+    }
+  }
+  
+  // Reconstruct path
+  if (prev[endId] === undefined && startId !== endId) return null;
+  
+  const path = [];
+  let cur = endId;
+  while (cur !== undefined) {
+    path.unshift(cur);
+    cur = prev[cur];
+  }
+  
+  return path;
+}
+
+// Calculate and store sea route for a leg
+async function calculateSeaRoute(legIdx, fromLonLat, toLonLat) {
+  if (!_marnetLoaded) {
+    await loadMarnetData();
+    if (!_marnetLoaded) {
+      alert('Could not load sea route data. Using straight line.');
+      return;
+    }
+  }
+  
+  const startNode = findNearestNode(fromLonLat[0], fromLonLat[1]);
+  const endNode = findNearestNode(toLonLat[0], toLonLat[1]);
+  
+  if (!startNode || !endNode) {
+    console.warn('No nearby sea nodes found');
+    return;
+  }
+  
+  const path = dijkstraSeaRoute(startNode.id, endNode.id);
+  
+  if (!path || path.length < 2) {
+    console.warn('No sea route found');
+    return;
+  }
+  
+  // Convert path to waypoints [lat, lon]
+  const nodeById = {};
+  for (const n of _marnetNodes) nodeById[n.id] = n;
+  
+  const waypoints = [];
+  // Add origin
+  waypoints.push([fromLonLat[1], fromLonLat[0]]);
+  // Add path nodes
+  for (const id of path) {
+    const n = nodeById[id];
+    if (n) waypoints.push([n.lat, n.lon]);
+  }
+  // Add destination
+  waypoints.push([toLonLat[1], toLonLat[0]]);
+  
+  // Store in leg
+  if (legs[legIdx]) {
+    legs[legIdx].seaRouteWaypoints = waypoints;
+    renderLegs();
+    if (rosterMap) updateRosterLines();
+  }
+}
+
+// Preload Marnet data on first ship button click
+loadMarnetData();
 
 // ═══════════════════════════════════════════════════════════
 // LOGBOOK
