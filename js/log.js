@@ -11,9 +11,14 @@ import {
   addAircraftType, updateAircraftType, deleteAircraftType,
   isHistoric,
 } from './data.js';
-import { settings } from './settings.js';
+
 import { aircraftCode, fullNameFromIcao, isKnownIcao, knownIcaoCodes } from './aircraft.js';
 import { getLogoUrl, hasLogo, uploadLogo, removeLogo, pickLogoFile, onLogoChange } from './logos.js';
+
+function getUnit() {
+  try { return JSON.parse(localStorage.getItem('flightlog.settings.v1') || '{}').unit || 'km'; }
+  catch { return 'km'; }
+}
 
 const ROW_HEIGHT = 60;
 const BUFFER_ROWS = 5;
@@ -214,7 +219,7 @@ function applyFilters() {
 
   const { col, dir } = filters.sort;
   const mul = dir === 'asc' ? 1 : -1;
-  const distKey = settings.unit === 'mi' ? 'distance_mi' : 'distance_km';
+  const distKey = getUnit() === 'mi' ? 'distance_mi' : 'distance_km';
   const cmp = (a, b) => {
     // Historic flights have no date — when sorting by date, they're treated
     // as older than any dated flight (sort to the "oldest" end).
@@ -254,7 +259,7 @@ function render(layoutOnly = false) {
   // Counts and sums exclude historic flights (per spec) — they have no real
   // date, distance, tier miles, or airline.
   const datedRows = rows.filter(f => !isHistoric(f));
-  const totalDist = datedRows.reduce((s, f) => s + (settings.unit === 'mi' ? (f.distance_mi || 0) : (f.distance_km || 0)), 0);
+  const totalDist = datedRows.reduce((s, f) => s + (getUnit() === 'mi' ? (f.distance_mi || 0) : (f.distance_km || 0)), 0);
   const totalTier = datedRows.reduce((s, f) => s + (f.tier_miles || 0), 0);
 
   // Airport count includes historic flights.
@@ -266,7 +271,7 @@ function render(layoutOnly = false) {
 
   const parts = [
     `${datedRows.length.toLocaleString()} flights`,
-    `${Math.round(totalDist).toLocaleString()} ${settings.unit}`,
+    `${Math.round(totalDist).toLocaleString()} ${getUnit()}`,
   ];
   if (totalTier) parts.push(`${totalTier.toLocaleString()} tier`);
   parts.push(`${airportCodes.size.toLocaleString()} airports`);
@@ -328,7 +333,7 @@ function rowHtml(f) {
   const toA   = store.airports.get(f.to_iata);
   const fromCity = fromA?.city || f.from_iata;
   const toCity   = toA?.city   || f.to_iata;
-  const dist = settings.unit === 'mi' ? f.distance_mi : f.distance_km;
+  const dist = getUnit() === 'mi' ? f.distance_mi : f.distance_km;
   const flashClass = f.id === lastFlash ? ' flash' : '';
   const historicClass = isHistoric(f) ? ' historic' : '';
   // Future flights: dated AFTER today's local date. Flights on today's date

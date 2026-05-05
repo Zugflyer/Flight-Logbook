@@ -4,12 +4,21 @@
 // ============================================================================
 
 import { store, onChange, signIn, signOut, loadAll } from './data.js';
-import { settings, saveSettings } from './settings.js';
+import { DEFAULTS } from './config.js';
 import { initLog, openManageAirports, openManageAircraft } from './log.js';
 import { initStats } from './stats.js';
 import { initMap } from './map.js';
 import { initStatus } from './status.js';
 import { initTrain } from './train.js';
+
+// ---------- Settings (localStorage-backed) ----------
+const SETTINGS_KEY = 'flightlog.settings.v1';
+function loadSettings() {
+  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
+  catch { return { ...DEFAULTS }; }
+}
+function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+export const settings = loadSettings();
 
 // ---------- Tabs ----------
 const panels = document.getElementById('panels');
