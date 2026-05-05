@@ -3298,6 +3298,7 @@ async function saveRoster() {
       arr_lat: leg.arr[3], arr_lon: leg.arr[4],
       airline: leg.airline||'', aircraft: leg.aircraft||'',
       planned: true,  // ← key flag: planned = blue line, not yet flown
+      surfaceMode: leg.surfaceMode || 'air',  // ship/road/air
     });
     added++;
   });
@@ -3359,8 +3360,17 @@ function drawLogbookLines() {
     // Planned = thin solid steel-blue; flown = thin solid grey
     const color = f.planned ? '#4a9eda' : '#5a6270';
     const weight = 1.2;
+    const mode = f.surfaceMode || 'air';
+    const isDashed = (mode === 'ship' || mode === 'road');
     try {
-      const line = new L.Geodesic([[depCoords, arrCoords]], { color, weight, opacity: f.planned ? 0.85 : 0.5, steps: 8 }).addTo(rosterMap);
+      const lineOpts = { color, weight, opacity: f.planned ? 0.85 : 0.5, steps: 8 };
+      if (isDashed) lineOpts.dashArray = '6, 4';
+      const line = new L.Geodesic([[depCoords, arrCoords]], lineOpts).addTo(rosterMap);
+      if (isDashed && line._layers) {
+        Object.values(line._layers).forEach(layer => {
+          if (layer.setStyle) layer.setStyle({ dashArray: '6, 4' });
+        });
+      }
       const r = 3;
       const dm = L.circleMarker(depCoords, { radius: r, color, fillColor: color, fillOpacity: 0.8, weight: 0 }).addTo(rosterMap);
       const am = L.circleMarker(arrCoords, { radius: r, color, fillColor: color, fillOpacity: 0.8, weight: 0 }).addTo(rosterMap);
@@ -3380,13 +3390,18 @@ function updateRosterLines() {
     const mode = leg.surfaceMode || 'air';
     try {
       const isDashed = (mode === 'ship' || mode === 'road');
-      const line = new L.Geodesic([[dc, ac]], {
+      const lineOpts = {
         color: '#f85149', weight: 2.5, opacity: 0.92, steps: 12
-      }).addTo(rosterMap);
+      };
+      if (isDashed) lineOpts.dashArray = '8, 6';
       
-      // Apply dash pattern after creation for surface transport
-      if (isDashed) {
-        line.setStyle({ dashArray: '8, 6' });
+      const line = new L.Geodesic([[dc, ac]], lineOpts).addTo(rosterMap);
+      
+      // For L.Geodesic, we need to apply dashArray to underlying polylines
+      if (isDashed && line._layers) {
+        Object.values(line._layers).forEach(layer => {
+          if (layer.setStyle) layer.setStyle({ dashArray: '8, 6' });
+        });
       }
       
       const dm = L.circleMarker(dc, { radius: 6, color: '#0e1117', weight: 2, fillColor: '#f85149', fillOpacity: 1 }).addTo(rosterMap);
@@ -3669,8 +3684,17 @@ function drawLbMapEu() {
     const color = matchesSel ? '#f85149' : baseColor;
     const weight = matchesSel ? 2.5 : 1.5;
     const opacity = matchesSel ? 0.95 : (f.planned ? 0.85 : 0.55);
+    const mode = f.surfaceMode || 'air';
+    const isDashed = (mode === 'ship' || mode === 'road');
     try {
-      const line = new L.Geodesic([[dc, ac]], { color, weight, opacity, steps: 6 }).addTo(lbMapEu);
+      const lineOpts = { color, weight, opacity, steps: 6 };
+      if (isDashed) lineOpts.dashArray = '6, 4';
+      const line = new L.Geodesic([[dc, ac]], lineOpts).addTo(lbMapEu);
+      if (isDashed && line._layers) {
+        Object.values(line._layers).forEach(function(layer) {
+          if (layer.setStyle) layer.setStyle({ dashArray: '6, 4' });
+        });
+      }
       lbMapEuLayers.push(line);
     } catch(e) {}
     if (f.dep_icao && !airportMapEu[f.dep_icao]) airportMapEu[f.dep_icao] = { icao: f.dep_icao, iata: f.dep_iata, city: f.dep, lat: f.dep_lat, lon: f.dep_lon };
@@ -3757,8 +3781,17 @@ function drawLbMap() {
     var color = matchesSel ? '#f85149' : baseColor;
     var weight = matchesSel ? 2.5 : 1.2;
     var opacity = matchesSel ? 0.95 : (f.planned ? 0.85 : 0.5);
+    var mode = f.surfaceMode || 'air';
+    var isDashed = (mode === 'ship' || mode === 'road');
     try {
-      var line = new L.Geodesic([[dc, ac]], { color: color, weight: weight, opacity: opacity, steps: 8 }).addTo(lbMap);
+      var lineOpts = { color: color, weight: weight, opacity: opacity, steps: 8 };
+      if (isDashed) lineOpts.dashArray = '6, 4';
+      var line = new L.Geodesic([[dc, ac]], lineOpts).addTo(lbMap);
+      if (isDashed && line._layers) {
+        Object.values(line._layers).forEach(function(layer) {
+          if (layer.setStyle) layer.setStyle({ dashArray: '6, 4' });
+        });
+      }
       lbMapLayers.push(line);
     } catch(e) {}
 
