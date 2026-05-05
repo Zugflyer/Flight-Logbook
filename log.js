@@ -8,6 +8,7 @@ import {
   store, onChange, addFlight, updateFlight, deleteFlight,
   uniqueAirlines, uniqueAircraft, searchAirports,
   addAirport, updateAirport, deleteAirport,
+  addAircraftType, updateAircraftType, deleteAircraftType,
   isHistoric,
 } from './data.js';
 import { settings } from './app.js';
@@ -95,7 +96,7 @@ export function initLog() {
 
   onChange(evt => {
     if (!evt || typeof evt !== 'object') return;
-    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'airports:changed') {
+    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'airports:changed' || evt.type === 'aircraft:changed') {
       populateFilterOptions();
       render();
     }
@@ -480,6 +481,185 @@ export function openManageAirports() {
 
   renderList();
   setTimeout(() => $search.focus(), 0);
+}
+
+// ============================================================
+// Manage aircraft modal — full list of aircraft type → ICAO mappings
+// ============================================================
+export function openManageAircraft() {
+  const wrap = document.createElement('div');
+  wrap.className = 'modal';
+  wrap.innerHTML = `
+    <div class="modal-card manage-airports">
+      <header class="modal-head">
+        <h2>Manage aircraft types</h2>
+        <button class="ghost icon-only" id="mac-close" aria-label="Close">×</button>
+      </header>
+      <div class="ma-toolbar">
+        <input type="search" id="mac-search" placeholder="Search by full name or ICAO code…">
+        <button class="primary" id="mac-add">+ Add aircraft type</button>
+      </div>
+      <div class="ma-list mac-list" id="mac-list"></div>
+      <footer class="modal-foot">
+        <span class="muted small" id="mac-count"></span>
+        <button class="ghost" id="mac-done">Done</button>
+      </footer>
+    </div>
+  `;
+  document.body.appendChild(wrap);
+
+  const $search = wrap.querySelector('#mac-search');
+  const $list = wrap.querySelector('#mac-list');
+  const $count = wrap.querySelector('#mac-count');
+
+  function renderList() {
+    const q = $search.value.toLowerCase().trim();
+    const allEntries = [...store.aircraftTypes.entries()];
+    let rows = allEntries;
+    if (q) {
+      rows = allEntries.filter(([name, icao]) =>
+        name.toLowerCase().includes(q) || icao.toLowerCase().includes(q)
+      );
+    }
+    rows.sort((a, b) => a[0].localeCompare(b[0]));
+    $count.textContent = q
+      ? `${rows.length.toLocaleString()} match${rows.length === 1 ? '' : 'es'} of ${allEntries.length.toLocaleString()}`
+      : `${allEntries.length.toLocaleString()} aircraft types`;
+    if (!rows.length) {
+      $list.innerHTML = `<div class="ma-empty">No matches.</div>`;
+      return;
+    }
+    $list.innerHTML = rows.map(([name, icao]) => `
+      <div class="ma-row mac-row" data-name="${escapeAttr(name)}">
+        <span class="mac-icao">${escapeHtml(icao)}</span>
+        <span class="mac-name">${escapeHtml(name)}</span>
+      </div>
+    `).join('');
+    $list.querySelectorAll('.mac-row').forEach(el => {
+      el.addEventListener('click', async () => {
+        const name = el.dataset.name;
+        const icao = store.aircraftTypes.get(name);
+        if (icao == null) return;
+        const result = await openAircraftTypeModal({ existing: { full_name: name, icao } });
+        if (result) renderList();
+      });
+    });
+  }
+
+  $search.addEventListener('input', renderList);
+  wrap.querySelector('#mac-add').addEventListener('click', async () => {
+    const result = await openAircraftTypeModal({});
+    if (result) { $search.value = ''; renderList(); }
+  });
+
+  const close = () => wrap.remove();
+  wrap.querySelector('#mac-close').addEventListener('click', close);
+  wrap.querySelector('#mac-done').addEventListener('click', close);
+  wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+
+  renderList();
+  setTimeout(() => $search.focus(), 0);
+}
+
+// ============================================================
+// Aircraft type add/edit modal
+// Usage:
+//   openAircraftTypeModal({})                              -> add new
+//   openAircraftTypeModal({ existing: {full_name, icao} }) -> edit existing
+// Returns a Promise that resolves with the saved row (or null on cancel).
+// ============================================================
+export function openAircraftTypeModal({ existing = null } = {}) {
+  return new Promise(resolve => {
+    const isEdit = !!existing;
+    const r = existing || { full_name: '', icao: '' };
+
+    const wrap = document.createElement('div');
+    wrap.className = 'modal';
+    wrap.innerHTML = `
+      <div class="modal-card flight-modal">
+        <header class="modal-head">
+          <h2>${isEdit ? 'Edit aircraft type' : 'Add aircraft type'}</h2>
+          <button class="ghost icon-only" id="at-close" aria-label="Close">×</button>
+        </header>
+        <div class="modal-body">
+          <div class="field">
+            <label>Full name</label>
+            <input type="text" id="at-name" value="${escapeAttr(r.full_name)}" placeholder="e.g. Airbus A321neo" autocomplete="off">
+          </div>
+          <div class="field">
+            <label>ICAO code</label>
+            <input type="text" id="at-icao" value="${escapeAttr(r.icao)}" placeholder="e.g. A21N" autocomplete="off" style="text-transform: uppercase">
+          </div>
+          <p class="error-msg" id="at-error"></p>
+        </div>
+        <footer class="modal-foot">
+          ${isEdit ? `<button class="ghost danger" id="at-delete">Delete</button>` : `<span></span>`}
+          <div class="foot-right">
+            <button class="ghost" id="at-cancel">Cancel</button>
+            <button class="primary" id="at-save">${isEdit ? 'Save' : 'Add'}</button>
+          </div>
+        </footer>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const $name = wrap.querySelector('#at-name');
+    const $icao = wrap.querySelector('#at-icao');
+    const $err = wrap.querySelector('#at-error');
+
+    // Auto-uppercase ICAO as the user types
+    $icao.addEventListener('input', () => {
+      const v = $icao.value;
+      const upper = v.toUpperCase();
+      if (upper !== v) {
+        const pos = $icao.selectionStart;
+        $icao.value = upper;
+        $icao.setSelectionRange(pos, pos);
+      }
+    });
+
+    setTimeout(() => (isEdit ? $icao : $name).focus(), 0);
+
+    const close = (val) => { wrap.remove(); resolve(val); };
+    wrap.querySelector('#at-close').addEventListener('click', () => close(null));
+    wrap.querySelector('#at-cancel').addEventListener('click', () => close(null));
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(null); });
+
+    wrap.querySelector('#at-save').addEventListener('click', async () => {
+      $err.textContent = '';
+      const fullName = $name.value.trim();
+      const icao = $icao.value.trim().toUpperCase();
+      if (!fullName) { $err.textContent = 'Full name is required.'; return; }
+      if (!icao) { $err.textContent = 'ICAO code is required.'; return; }
+      if (!/^[A-Z0-9]{2,5}$/.test(icao)) {
+        $err.textContent = 'ICAO should be 2–5 letters or digits.';
+        return;
+      }
+      try {
+        let saved;
+        if (isEdit) {
+          saved = await updateAircraftType(existing.full_name, { full_name: fullName, icao });
+        } else {
+          saved = await addAircraftType({ full_name: fullName, icao });
+        }
+        close(saved);
+      } catch (e) {
+        $err.textContent = 'Save failed: ' + (e.message || e);
+      }
+    });
+
+    if (isEdit) {
+      wrap.querySelector('#at-delete').addEventListener('click', async () => {
+        if (!confirm(`Delete the mapping "${existing.full_name}" → "${existing.icao}"?`)) return;
+        try {
+          await deleteAircraftType(existing.full_name);
+          close({ deleted: true });
+        } catch (e) {
+          $err.textContent = 'Delete failed: ' + (e.message || e);
+        }
+      });
+    }
+  });
 }
 
 // ============================================================
