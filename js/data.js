@@ -17,6 +17,7 @@ export const store = {
   user: null,
   programAdjustments: new Map(),
   trainTrips: [],
+  aircraftTypes: new Map(),       // full_name → icao
 };
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit(evt) { for (const fn of listeners) fn(evt); }
@@ -56,6 +57,7 @@ export async function signOut() {
   store.airports = new Map();
   store.programAdjustments = new Map();
   store.trainTrips = [];
+  store.aircraftTypes = new Map();
   store.ready = false;
   emit({ type: 'auth:locked' });
 }
@@ -77,20 +79,21 @@ async function fetchAll(table, orderCol = null) {
 }
 
 export async function loadAll() {
-  const [flights, airports, adjustments, trainTrips] = await Promise.all([
+  const [flights, airports, adjustments, trainTrips, aircraftTypes] = await Promise.all([
     fetchAll('flights', 'date'),
     fetchAll('airports'),
     fetchAll('program_adjustments'),
     fetchAll('train_trips', 'date'),
+    fetchAll('aircraft_types'),
     loadLogos(),
   ]);
   flights.sort(flightDateCompare);
   store.flights = flights;
   store.airports = new Map(airports.map(a => [a.iata, a]));
   store.programAdjustments = new Map(adjustments.map(r => [r.program_id, r]));
-  // Eurostar: newest first by default (matches the page's display order)
   trainTrips.sort((a, b) => b.date.localeCompare(a.date));
   store.trainTrips = trainTrips;
+  store.aircraftTypes = new Map(aircraftTypes.map(r => [r.full_name, r.icao]));
   store.ready = true;
   emit({ type: 'data:loaded', counts: { flights: store.flights.length, airports: store.airports.size } });
 }
@@ -181,6 +184,56 @@ export async function deleteTrainTrip(id) {
   if (error) throw error;
   store.trainTrips = store.trainTrips.filter(t => t.id !== id);
   emit({ type: 'trains:changed', kind: 'delete', id });
+}
+
+// ----------- CRUD: aircraft_types -----------
+export async function addAircraftType(row) {
+  const payload = {
+    full_name: String(row.full_name).trim(),
+    icao: String(row.icao).trim().toUpperCase(),
+  };
+  const { data, error } = await sb.from('aircraft_types').insert(payload).select().single();
+  if (error) throw error;
+  store.aircraftTypes.set(data.full_name, data.icao);
+  emit({ type: 'aircraft:changed', kind: 'add', row: data });
+  return data;
+}
+
+export async function updateAircraftType(originalFullName, patch) {
+  const newFullName = patch.full_name !== undefined
+    ? String(patch.full_name).trim()
+    : originalFullName;
+  const newIcao = patch.icao !== undefined
+    ? String(patch.icao).trim().toUpperCase()
+    : store.aircraftTypes.get(originalFullName);
+  // If the primary key (full_name) changes, do a delete + insert.
+  if (newFullName !== originalFullName) {
+    const { error: delErr } = await sb.from('aircraft_types').delete().eq('full_name', originalFullName);
+    if (delErr) throw delErr;
+    const { data, error } = await sb.from('aircraft_types').insert({
+      full_name: newFullName, icao: newIcao,
+    }).select().single();
+    if (error) throw error;
+    store.aircraftTypes.delete(originalFullName);
+    store.aircraftTypes.set(data.full_name, data.icao);
+    emit({ type: 'aircraft:changed', kind: 'update', row: data });
+    return data;
+  } else {
+    const { data, error } = await sb.from('aircraft_types')
+      .update({ icao: newIcao, updated_at: new Date().toISOString() })
+      .eq('full_name', originalFullName).select().single();
+    if (error) throw error;
+    store.aircraftTypes.set(data.full_name, data.icao);
+    emit({ type: 'aircraft:changed', kind: 'update', row: data });
+    return data;
+  }
+}
+
+export async function deleteAircraftType(fullName) {
+  const { error } = await sb.from('aircraft_types').delete().eq('full_name', fullName);
+  if (error) throw error;
+  store.aircraftTypes.delete(fullName);
+  emit({ type: 'aircraft:changed', kind: 'delete', fullName });
 }
 
 // ----------- Program adjustments (manual corrections, qualification windows) -----------
