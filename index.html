@@ -3357,19 +3357,18 @@ function drawLogbookLines() {
     const depCoords = f.dep_lat ? [f.dep_lat, f.dep_lon] : null;
     const arrCoords = f.arr_lat ? [f.arr_lat, f.arr_lon] : null;
     if (!depCoords || !arrCoords) return;
-    // Planned = thin solid steel-blue; flown = thin solid grey
     const color = f.planned ? '#4a9eda' : '#5a6270';
     const weight = 1.2;
     const mode = f.surfaceMode || 'air';
     const isDashed = (mode === 'ship' || mode === 'road');
     try {
-      const lineOpts = { color, weight, opacity: f.planned ? 0.85 : 0.5, steps: 8 };
-      if (isDashed) lineOpts.dashArray = '6, 4';
-      const line = new L.Geodesic([[depCoords, arrCoords]], lineOpts).addTo(rosterMap);
-      if (isDashed && line._layers) {
-        Object.values(line._layers).forEach(layer => {
-          if (layer.setStyle) layer.setStyle({ dashArray: '6, 4' });
+      let line;
+      if (isDashed) {
+        line = drawDashedGeodesic(rosterMap, depCoords, arrCoords, {
+          color, weight, opacity: f.planned ? 0.85 : 0.5, dashArray: '6, 4', steps: 20
         });
+      } else {
+        line = new L.Geodesic([[depCoords, arrCoords]], { color, weight, opacity: f.planned ? 0.85 : 0.5, steps: 8 }).addTo(rosterMap);
       }
       const r = 3;
       const dm = L.circleMarker(depCoords, { radius: r, color, fillColor: color, fillOpacity: 0.8, weight: 0 }).addTo(rosterMap);
@@ -3377,6 +3376,41 @@ function drawLogbookLines() {
       rosterLayers.push(line, dm, am);
     } catch(e) {}
   });
+}
+
+// Helper: Draw a dashed great-circle line using L.Polyline (L.Geodesic doesn't support dashArray)
+function drawDashedGeodesic(map, from, to, opts) {
+  // Generate intermediate points along the great circle
+  const steps = opts.steps || 20;
+  const points = [];
+  const lat1 = from[0] * Math.PI / 180;
+  const lon1 = from[1] * Math.PI / 180;
+  const lat2 = to[0] * Math.PI / 180;
+  const lon2 = to[1] * Math.PI / 180;
+  
+  for (let i = 0; i <= steps; i++) {
+    const f = i / steps;
+    const d = Math.acos(Math.sin(lat1)*Math.sin(lat2) + Math.cos(lat1)*Math.cos(lat2)*Math.cos(lon2-lon1));
+    if (d === 0) {
+      points.push(from);
+    } else {
+      const A = Math.sin((1-f)*d) / Math.sin(d);
+      const B = Math.sin(f*d) / Math.sin(d);
+      const x = A * Math.cos(lat1) * Math.cos(lon1) + B * Math.cos(lat2) * Math.cos(lon2);
+      const y = A * Math.cos(lat1) * Math.sin(lon1) + B * Math.cos(lat2) * Math.sin(lon2);
+      const z = A * Math.sin(lat1) + B * Math.sin(lat2);
+      const lat = Math.atan2(z, Math.sqrt(x*x + y*y)) * 180 / Math.PI;
+      const lon = Math.atan2(y, x) * 180 / Math.PI;
+      points.push([lat, lon]);
+    }
+  }
+  
+  return L.polyline(points, {
+    color: opts.color || '#f85149',
+    weight: opts.weight || 2,
+    opacity: opts.opacity || 0.8,
+    dashArray: opts.dashArray || '8, 6'
+  }).addTo(map);
 }
 
 function updateRosterLines() {
@@ -3390,18 +3424,13 @@ function updateRosterLines() {
     const mode = leg.surfaceMode || 'air';
     try {
       const isDashed = (mode === 'ship' || mode === 'road');
-      const lineOpts = {
-        color: '#f85149', weight: 2.5, opacity: 0.92, steps: 12
-      };
-      if (isDashed) lineOpts.dashArray = '8, 6';
-      
-      const line = new L.Geodesic([[dc, ac]], lineOpts).addTo(rosterMap);
-      
-      // For L.Geodesic, we need to apply dashArray to underlying polylines
-      if (isDashed && line._layers) {
-        Object.values(line._layers).forEach(layer => {
-          if (layer.setStyle) layer.setStyle({ dashArray: '8, 6' });
+      let line;
+      if (isDashed) {
+        line = drawDashedGeodesic(rosterMap, dc, ac, {
+          color: '#f85149', weight: 2.5, opacity: 0.92, dashArray: '8, 6', steps: 30
         });
+      } else {
+        line = new L.Geodesic([[dc, ac]], { color: '#f85149', weight: 2.5, opacity: 0.92, steps: 12 }).addTo(rosterMap);
       }
       
       const dm = L.circleMarker(dc, { radius: 6, color: '#0e1117', weight: 2, fillColor: '#f85149', fillOpacity: 1 }).addTo(rosterMap);
@@ -3687,13 +3716,11 @@ function drawLbMapEu() {
     const mode = f.surfaceMode || 'air';
     const isDashed = (mode === 'ship' || mode === 'road');
     try {
-      const lineOpts = { color, weight, opacity, steps: 6 };
-      if (isDashed) lineOpts.dashArray = '6, 4';
-      const line = new L.Geodesic([[dc, ac]], lineOpts).addTo(lbMapEu);
-      if (isDashed && line._layers) {
-        Object.values(line._layers).forEach(function(layer) {
-          if (layer.setStyle) layer.setStyle({ dashArray: '6, 4' });
-        });
+      let line;
+      if (isDashed) {
+        line = drawDashedGeodesic(lbMapEu, dc, ac, { color, weight, opacity, dashArray: '6, 4', steps: 15 });
+      } else {
+        line = new L.Geodesic([[dc, ac]], { color, weight, opacity, steps: 6 }).addTo(lbMapEu);
       }
       lbMapEuLayers.push(line);
     } catch(e) {}
@@ -3784,13 +3811,11 @@ function drawLbMap() {
     var mode = f.surfaceMode || 'air';
     var isDashed = (mode === 'ship' || mode === 'road');
     try {
-      var lineOpts = { color: color, weight: weight, opacity: opacity, steps: 8 };
-      if (isDashed) lineOpts.dashArray = '6, 4';
-      var line = new L.Geodesic([[dc, ac]], lineOpts).addTo(lbMap);
-      if (isDashed && line._layers) {
-        Object.values(line._layers).forEach(function(layer) {
-          if (layer.setStyle) layer.setStyle({ dashArray: '6, 4' });
-        });
+      var line;
+      if (isDashed) {
+        line = drawDashedGeodesic(lbMap, dc, ac, { color: color, weight: weight, opacity: opacity, dashArray: '6, 4', steps: 20 });
+      } else {
+        line = new L.Geodesic([[dc, ac]], { color: color, weight: weight, opacity: opacity, steps: 8 }).addTo(lbMap);
       }
       lbMapLayers.push(line);
     } catch(e) {}
