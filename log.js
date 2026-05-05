@@ -11,7 +11,7 @@ import {
   addAircraftType, updateAircraftType, deleteAircraftType,
   isHistoric,
 } from './data.js';
-import { settings } from './app.js';
+import { settings } from './settings.js';
 import { aircraftCode, fullNameFromIcao, isKnownIcao, knownIcaoCodes } from './aircraft.js';
 import { getLogoUrl, hasLogo, uploadLogo, removeLogo, pickLogoFile, onLogoChange } from './logos.js';
 
