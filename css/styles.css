@@ -1904,7 +1904,7 @@ button.ghost.small {
 
 /* Operator logo cell (leftmost column in trip rows) */
 .tt-col-op {
-  justify-content: flex-start;
+  justify-content: center;
 }
 .tt-op-logo {
   max-height: 24px;
@@ -2525,4 +2525,34 @@ button.ghost.small {
 .credit-tick:disabled {
   opacity: 0.5;
   cursor: progress;
+}
+
+/* ============================================================================
+ * Manage aircraft modal — list rows with ICAO + full name
+ * ============================================================================ */
+.mac-row {
+  display: grid;
+  grid-template-columns: 80px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 80ms;
+}
+.mac-row:hover { background: var(--accent-soft); }
+.mac-icao {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: var(--bg-2);
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+.mac-name {
+  font-size: 13px;
+  color: var(--fg-0);
 }
