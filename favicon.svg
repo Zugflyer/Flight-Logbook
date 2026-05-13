@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Rounded square background, Outlook blue -->
-  <rect width="64" height="64" rx="12" fill="#0078d4"/>
+  <!-- Rounded square background, darker blue -->
+  <rect width="64" height="64" rx="12" fill="#083d8a"/>
 
   <!-- Subtle white "wing/swoosh" arcing across the lower half for an airline feel -->
   <path d="M -2 50 Q 32 38 70 56 L 70 70 L -2 70 Z"
