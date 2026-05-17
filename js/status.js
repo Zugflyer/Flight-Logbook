@@ -454,49 +454,6 @@ function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
 // Oneworld airline IATA codes and their Finnair tier point multipliers.
 // Source: attached screenshot. All others default to 100%.
 const AY_AIRLINES = [
-  { code: 'AS', name: 'Alaska Airlines',    mult: 1.00 },
-  { code: 'HA', name: 'Hawaiian Airlines',  mult: 1.00 },
-  { code: 'AA', name: 'American Airlines',  mult: 1.25 },
-  { code: 'BA', name: 'British Airways',    mult: 1.15 },
-  { code: 'CX', name: 'Cathay Pacific',     mult: 1.00 },
-  { code: 'FJ', name: 'Fiji Airways',       mult: 1.00 },
-  { code: 'IB', name: 'Iberia',             mult: 1.25 },
-  { code: 'JL', name: 'Japan Airlines',     mult: 1.00 },
-  { code: 'MH', name: 'Malaysia Airlines',  mult: 1.00 },
-  { code: 'WY', name: 'Oman Air',           mult: 1.00 },
-  { code: 'QF', name: 'Qantas',             mult: 1.00 },
-  { code: 'QR', name: 'Qatar Airways',      mult: 1.00 },
-  { code: 'AT', name: 'Royal Air Maroc',    mult: 1.00 },
-  { code: 'RJ', name: 'Royal Jordanian',    mult: 1.00 },
-  { code: 'UL', name: 'SriLankan Airlines', mult: 1.00 },
-  { code: 'AY', name: 'Finnair',            mult: 1.00 },
-];
-
-// Booking class multipliers — 100% default for now; editable later
-const CLASS_MULTIPLIERS = {
-  'A': 1.50, 'F': 1.50,                         // First
-  'J': 1.25, 'C': 1.25, 'D': 1.25, 'I': 1.25,  // Business
-  'W': 1.10, 'E': 1.10,                          // Premium Economy
-  'Y': 1.00, 'B': 1.00, 'H': 1.00, 'K': 1.00, 'M': 1.00,
-  'L': 1.00, 'V': 1.00, 'S': 1.00, 'N': 1.00, 'Q': 1.00,
-  'T': 1.00, 'G': 1.00, 'X': 1.00, 'O': 1.00,  // Economy
-};
-
-const SIM_TARGET = 57500;
-let simRows = [];   // [{ id, airline, dep, arr, class, times }]
-let simCounter = 0;
-
-// ============================================================================
-// Finnair Tier Point Simulator
-// ============================================================================
-
-// Earning tables per airline — booking class → multiplier (as decimal fraction of miles)
-// image1 = British Airways table (Alaska, American, BA, Cathay, Fiji, Iberia, JAL, Malaysian)
-// image2 = Alaska table (Oman Air)
-// image3 = Qantas/Qatar table
-// image4 = Royal Air Maroc table
-// image5 = Royal Jordanian / SriLankan table
-const AY_AIRLINES = [
   { code: 'AS', name: 'Alaska Airlines',    tierMult: 1.00,
     classes: [
       { cabin:'Business Studio', codes:['F'],                       pct: 2.40 },
