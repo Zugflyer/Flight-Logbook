@@ -126,6 +126,8 @@ export function initStatus() {
                 </div>
               </div>
 
+              <div class="sim-forecast-table" id="sim-forecast-table"></div>
+
               <div class="sim-earnings-section">
                 <div class="sim-mult-label">Earning rates by airline</div>
                 <div class="sim-airline-picker-wrap" id="sim-airline-picker-wrap">
@@ -626,9 +628,11 @@ function buildClassMap(airline) {
 }
 
 const SIM_TARGET = 57500;
-let simRows   = [];
-let simCounter = 0;
+let simRows          = [];
+let simCounter       = 0;
 let selectedAirlineIdx = 0;  // index into AY_AIRLINES for the earnings panel
+let forecastLines    = [];   // [{ id, airline, dep, arr, cls, tpPerFlight, times }]
+let forecastCounter  = 0;
 
 function initFinnairSim() {
   const card = document.getElementById('ay-sim-card');
@@ -741,6 +745,10 @@ function initFinnairSim() {
           <span class="sim-result-label">Total tier points</span>
           <span class="sim-result-val sim-result-val--total" id="sim-total-${row.id}">—</span>
         </div>
+
+        <button type="button" class="sim-add-forecast-btn" data-action="add-forecast" data-id="${row.id}">
+          + Add to forecast
+        </button>
       </div>`;
     }).join('');
     recalcSim();
@@ -750,6 +758,7 @@ function initFinnairSim() {
     renderLogoStrip();
     renderEarningsPanel();
     renderRows();
+    renderForecast();
   }
 
   // ── Single delegated click handler on the card ────────────────────────────
@@ -766,14 +775,49 @@ function initFinnairSim() {
       selectedAirlineIdx = Number(el.dataset.idx);
       renderLogoStrip();
       renderEarningsPanel();
+      renderRows();
       return;
     }
     if (action === 'delete-row') {
       const id = Number(el.dataset.id);
       simRows = simRows.filter(r => r.id !== id);
       if (openPickerId === id) openPickerId = null;
-      if (simRows.length === 0) simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
+      if (simRows.length === 0) simRows.push({ id: ++simCounter, airline: AY_AIRLINES[selectedAirlineIdx]?.code || 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
       renderRows();
+      return;
+    }
+
+    if (action === 'add-forecast') {
+      const id  = Number(el.dataset.id);
+      const row = simRows.find(r => r.id === id);
+      if (!row || !row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) return;
+      const a = store.airports.get(row.dep), b = store.airports.get(row.arr);
+      if (!a || !b) return;
+      const airline   = AY_AIRLINES.find(x => x.code === row.airline) || AY_AIRLINES[0];
+      const classMap  = buildClassMap(airline);
+      const classPct  = classMap[row.cls.toUpperCase()] ?? 1.00;
+      const distMi    = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
+      const tpPerFlight = Math.round(distMi * classPct * airline.tierMult);
+      if (forecastLines.length >= 20) return;
+      forecastLines.push({
+        id: ++forecastCounter,
+        airline: row.airline,
+        dep: row.dep,
+        arr: row.arr,
+        cls: row.cls,
+        tpPerFlight,
+        times: row.times,
+      });
+      renderForecast();
+      updateSimSummary();
+      return;
+    }
+
+    if (action === 'delete-forecast') {
+      const id = Number(el.dataset.id);
+      forecastLines = forecastLines.filter(f => f.id !== id);
+      renderForecast();
+      updateSimSummary();
       return;
     }
   });
@@ -811,6 +855,75 @@ function initFinnairSim() {
   simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
   fullRender();
   if (store.ready) updateSimSummary();
+}
+
+// ── Forecast table render ────────────────────────────────────────────────────
+function renderForecast() {
+  const container = document.getElementById('sim-forecast-table');
+  if (!container) return;
+  if (forecastLines.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  container.innerHTML = `
+    <div class="sim-forecast-wrap">
+      <div class="sim-forecast-head">
+        <span class="sfc-col-al">Airline</span>
+        <span class="sfc-col-route">Route</span>
+        <span class="sfc-col-cls">Cls</span>
+        <span class="sfc-col-tp">TP/flight</span>
+        <span class="sfc-col-times">×</span>
+        <span class="sfc-col-total">Total TP</span>
+        <span class="sfc-col-del"></span>
+      </div>
+      ${forecastLines.map(f => {
+        const total = f.tpPerFlight * f.times;
+        const url   = simLogoUrl(f.airline);
+        const logoHtml = url
+          ? `<img class="sfc-logo" src="${url}" alt="${f.airline}">`
+          : `<span class="sim-logo-chip">${f.airline}</span>`;
+        return `<div class="sim-forecast-row" data-id="${f.id}">
+          <span class="sfc-col-al">${logoHtml}</span>
+          <span class="sfc-col-route">${f.dep}–${f.arr}</span>
+          <input class="sfc-input sfc-col-cls" type="text" maxlength="1"
+            value="${f.cls}" data-ffield="cls" data-id="${f.id}">
+          <span class="sfc-col-tp sfc-val" id="sfc-tp-${f.id}">${f.tpPerFlight.toLocaleString()}</span>
+          <input class="sfc-input sfc-col-times" type="number" min="1" step="1"
+            value="${f.times}" data-ffield="times" data-id="${f.id}">
+          <span class="sfc-col-total sfc-val sfc-val--total" id="sfc-total-${f.id}">${total.toLocaleString()}</span>
+          <button class="sim-del-btn" data-action="delete-forecast" data-id="${f.id}" title="Remove">×</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  // Wire inline edits for forecast rows
+  container.querySelectorAll('[data-ffield]').forEach(el => {
+    el.addEventListener('input', e => {
+      const fid  = Number(e.target.dataset.id);
+      const ff   = e.target.dataset.ffield;
+      const line = forecastLines.find(x => x.id === fid);
+      if (!line) return;
+      if (ff === 'times') {
+        line.times = Math.max(1, parseInt(e.target.value, 10) || 1);
+      } else if (ff === 'cls') {
+        line.cls = e.target.value.trim().toUpperCase();
+        e.target.value = line.cls;
+        // Recalc tpPerFlight for new class
+        const airline  = AY_AIRLINES.find(x => x.code === line.airline) || AY_AIRLINES[0];
+        const classMap = buildClassMap(airline);
+        const dep = store.airports.get(line.dep), arr = store.airports.get(line.arr);
+        if (dep && arr) {
+          const distMi = haversineKm(dep.lat, dep.lon, arr.lat, arr.lon) * 0.621371;
+          line.tpPerFlight = Math.round(distMi * (classMap[line.cls] ?? 1.00) * airline.tierMult);
+          const $tp = document.getElementById(`sfc-tp-${fid}`);
+          if ($tp) $tp.textContent = line.tpPerFlight.toLocaleString();
+        }
+      }
+      const $tot = document.getElementById(`sfc-total-${fid}`);
+      if ($tot) $tot.textContent = (line.tpPerFlight * line.times).toLocaleString();
+      updateSimSummary();
+    });
+  });
 }
 
 // ── Calculation ───────────────────────────────────────────────────────────────
@@ -854,18 +967,8 @@ function updateSimSummary(simulatedExtra) {
   const current = computeBalance(prog, computeWindow(prog, new Date())).total;
 
   if (simulatedExtra === undefined) {
-    let grand = 0;
-    for (const row of simRows) {
-      if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) continue;
-      const a = store.airports.get(row.dep), b = store.airports.get(row.arr);
-      if (!a || !b) continue;
-      const airline   = AY_AIRLINES.find(x => x.code === row.airline) || AY_AIRLINES[0];
-      const classMap  = buildClassMap(airline);
-      const classPct  = classMap[row.cls.toUpperCase()] ?? 1.00;
-      const distMi    = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
-      grand += Math.round(distMi * classPct * airline.tierMult) * row.times;
-    }
-    simulatedExtra = grand;
+    // Sum only the committed forecast lines
+    simulatedExtra = forecastLines.reduce((sum, f) => sum + f.tpPerFlight * f.times, 0);
   }
 
   const projected = current + simulatedExtra;
