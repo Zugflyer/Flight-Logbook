@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { store, onChange, isHistoric, setProgramAdjustment } from './data.js';
+import { getLogoUrl } from './logos.js';
 
 // ---------- Program definitions ----------
 // Logos live in assets/logos/. Files are PNGs (despite the original SVG
@@ -445,6 +446,7 @@ function renderBreakdown(program, balance, window) {
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+function escapeAttr(s) { return escapeHtml(s); }
 
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -494,117 +496,76 @@ function initFinnairSim() {
   const card = document.getElementById('ay-sim-card');
   if (!card) return;
 
-  // Render the multiplier reference grid
-  renderMultGrid();
+  // Which airline-picker dropdown is currently open (row id, or null)
+  let openPickerId = null;
 
-  // Wire "Add flight" button
-  document.getElementById('sim-add-row').addEventListener('click', () => {
-    addSimRow();
-  });
+  // ── Render helpers ────────────────────────────────────────────────────────
 
-  // Seed with one empty row
-  addSimRow();
-
-  // Update current balance whenever data changes
-  onChange(evt => {
-    if (!evt) return;
-    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'program:changed') {
-      updateSimSummary();
-    }
-  });
-  if (store.ready) updateSimSummary();
-}
-
-function renderMultGrid() {
-  const panel = document.getElementById('sim-mult-panel');
-  const triggerLogos = document.getElementById('sim-mult-trigger-logos');
-  const trigger = document.getElementById('sim-mult-trigger');
-  if (!panel || !trigger) return;
-
-  // Build the panel rows — one per airline
-  panel.innerHTML = AY_AIRLINES.map(a => {
-    const multLabel = a.mult === 1 ? '100%' : `${Math.round(a.mult * 100)}%`;
-    const hiClass = a.mult > 1 ? ' sim-mult-row--hi' : '';
-    return `
-      <div class="sim-mult-row${hiClass}">
-        <div class="sim-mult-row-logo-wrap">
-          <img class="sim-mult-row-logo" src="assets/logos/${a.code.toLowerCase()}.png" alt=""
-            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <span class="sim-mult-row-chip" style="display:none">${escapeHtml(a.code)}</span>
-        </div>
-        <span class="sim-mult-row-code">${escapeHtml(a.code)}</span>
-        <span class="sim-mult-row-name">${escapeHtml(a.name)}</span>
-        <span class="sim-mult-row-pct">${multLabel}</span>
-      </div>`;
-  }).join('');
-
-  // Show a few mini logos on the trigger button as a preview
-  if (triggerLogos) {
-    triggerLogos.innerHTML = AY_AIRLINES.slice(0, 5).map(a =>
-      `<img class="sim-trigger-mini-logo" src="assets/logos/${a.code.toLowerCase()}.png" alt="${a.code}"
-        onerror="this.style.display='none'">`
-    ).join('');
+  function logoFor(code, cls) {
+    const url = getLogoUrl(code);
+    return url
+      ? `<img class="${cls}" src="${url}" alt="${code}">`
+      : `<span class="sim-logo-chip">${code}</span>`;
   }
 
-  // Toggle open/close
-  trigger.addEventListener('click', () => {
-    const isOpen = !panel.hidden;
-    panel.hidden = isOpen;
-    trigger.classList.toggle('sim-mult-trigger--open', !isOpen);
-  });
-
-  // Close when clicking outside
-  document.addEventListener('click', e => {
-    if (!trigger.contains(e.target) && !panel.contains(e.target)) {
-      panel.hidden = true;
-      trigger.classList.remove('sim-mult-trigger--open');
+  function renderMultGrid() {
+    const panel        = document.getElementById('sim-mult-panel');
+    const triggerLogos = document.getElementById('sim-mult-trigger-logos');
+    if (!panel) return;
+    panel.innerHTML = AY_AIRLINES.map(a => {
+      const pct   = a.mult === 1 ? '100%' : `${Math.round(a.mult * 100)}%`;
+      const hiCls = a.mult > 1 ? ' sim-mult-row--hi' : '';
+      return `<div class="sim-mult-row${hiCls}">
+        <div class="sim-mult-row-logo-wrap">${logoFor(a.code, 'sim-mult-row-logo')}</div>
+        <span class="sim-mult-row-code">${a.code}</span>
+        <span class="sim-mult-row-name">${a.name}</span>
+        <span class="sim-mult-row-pct">${pct}</span>
+      </div>`;
+    }).join('');
+    if (triggerLogos) {
+      triggerLogos.innerHTML = AY_AIRLINES.slice(0, 6).map(a => {
+        const url = getLogoUrl(a.code);
+        return url ? `<img class="sim-trigger-mini-logo" src="${url}" alt="${a.code}">` : '';
+      }).join('');
     }
-  });
-}
+  }
 
-function addSimRow(defaults = {}) {
-  const id = ++simCounter;
-  simRows.push({ id, airline: defaults.airline || 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
-  renderSimRows();
-}
-
-function removeSimRow(id) {
-  simRows = simRows.filter(r => r.id !== id);
-  if (simRows.length === 0) addSimRow();
-  else renderSimRows();
-}
-
-function renderSimRows() {
-  const container = document.getElementById('sim-rows');
-  if (!container) return;
-
-  container.innerHTML = simRows.map(row => {
-    const airlineOptions = AY_AIRLINES.map(a =>
-      `<option value="${a.code}" ${a.code === row.airline ? 'selected' : ''}>${a.code} – ${a.name}</option>`
-    ).join('');
-
-    return `
-      <div class="sim-row" data-id="${row.id}">
+  function renderRows() {
+    const container = document.getElementById('sim-rows');
+    if (!container) return;
+    container.innerHTML = simRows.map(row => {
+      const al = AY_AIRLINES.find(a => a.code === row.airline) || AY_AIRLINES[0];
+      const isOpen = openPickerId === row.id;
+      return `<div class="sim-row" data-id="${row.id}">
         <div class="sim-col-airline">
-          <div class="sim-airline-select-wrap">
-            <img class="sim-airline-thumb" src="assets/logos/${row.airline.toLowerCase()}.png" alt=""
-              onerror="this.style.display='none'" data-sim-logo="${row.id}">
-            <select class="sim-select" data-field="airline" data-id="${row.id}">
-              ${airlineOptions}
-            </select>
+          <div class="sim-al-picker">
+            <button type="button" class="sim-al-btn${isOpen ? ' sim-al-btn--open' : ''}" data-action="toggle-picker" data-id="${row.id}">
+              <span class="sim-al-btn-logo">${logoFor(al.code, 'sim-al-logo')}</span>
+              <span class="sim-al-btn-code">${al.code}</span>
+              <span class="sim-al-chevron">${isOpen ? '▴' : '▾'}</span>
+            </button>
+            ${isOpen ? `<div class="sim-al-dropdown">
+              ${AY_AIRLINES.map(a => `
+                <div class="sim-al-option${a.code === row.airline ? ' sim-al-option--sel' : ''}"
+                     data-action="pick-airline" data-id="${row.id}" data-code="${a.code}">
+                  <span class="sim-al-opt-logo">${logoFor(a.code, 'sim-al-opt-logo-img')}</span>
+                  <span class="sim-al-opt-code">${a.code}</span>
+                  <span class="sim-al-opt-name">${a.name}</span>
+                </div>`).join('')}
+            </div>` : ''}
           </div>
         </div>
         <div class="sim-col-dep">
           <input class="sim-input sim-iata" type="text" maxlength="3" placeholder="DEP"
-            value="${escapeHtml(row.dep)}" data-field="dep" data-id="${row.id}">
+            value="${row.dep}" data-field="dep" data-id="${row.id}">
         </div>
         <div class="sim-col-arr">
           <input class="sim-input sim-iata" type="text" maxlength="3" placeholder="ARR"
-            value="${escapeHtml(row.arr)}" data-field="arr" data-id="${row.id}">
+            value="${row.arr}" data-field="arr" data-id="${row.id}">
         </div>
         <div class="sim-col-class">
           <input class="sim-input sim-class" type="text" maxlength="1" placeholder="Y"
-            value="${escapeHtml(row.cls)}" data-field="cls" data-id="${row.id}">
+            value="${row.cls}" data-field="cls" data-id="${row.id}">
         </div>
         <div class="sim-col-tp">
           <span class="sim-tp-result" id="sim-tp-${row.id}">—</span>
@@ -617,70 +578,116 @@ function renderSimRows() {
           <span class="sim-tp-total" id="sim-total-${row.id}">—</span>
         </div>
         <div class="sim-col-del">
-          <button class="sim-del-btn" data-del="${row.id}" title="Remove">×</button>
+          <button class="sim-del-btn" data-action="delete-row" data-id="${row.id}" title="Remove">×</button>
         </div>
-      </div>
-    `;
-  }).join('');
-
-  // Wire events
-  container.querySelectorAll('[data-field]').forEach(el => {
-    const event = (el.tagName === 'SELECT' || el.type === 'number') ? 'change' : 'input';
-    el.addEventListener(event, handleSimInput);
-    if (el.tagName !== 'SELECT') el.addEventListener('blur', handleSimInput);
-  });
-  container.querySelectorAll('[data-del]').forEach(btn => {
-    btn.addEventListener('click', () => removeSimRow(Number(btn.dataset.del)));
-  });
-
-  recalcSim();
-}
-
-function handleSimInput(e) {
-  const el = e.target;
-  const id = Number(el.dataset.id);
-  const field = el.dataset.field;
-  const row = simRows.find(r => r.id === id);
-  if (!row) return;
-
-  if (field === 'airline') {
-    row.airline = el.value;
-    // Update logo thumbnail
-    const logo = document.querySelector(`[data-sim-logo="${id}"]`);
-    if (logo) {
-      logo.style.display = '';
-      logo.src = `assets/logos/${el.value.toLowerCase()}.png`;
-    }
-  } else if (field === 'dep') {
-    row.dep = el.value.trim().toUpperCase();
-    el.value = row.dep;
-  } else if (field === 'arr') {
-    row.arr = el.value.trim().toUpperCase();
-    el.value = row.arr;
-  } else if (field === 'cls') {
-    row.cls = el.value.trim().toUpperCase();
-    el.value = row.cls;
-  } else if (field === 'times') {
-    row.times = Math.max(1, parseInt(el.value, 10) || 1);
-    el.value = row.times;
+      </div>`;
+    }).join('');
+    recalcSim();
   }
 
-  recalcSim();
+  // ── Single delegated click handler on the whole sim card ─────────────────
+  card.addEventListener('click', e => {
+    const action = e.target.closest('[data-action]')?.dataset.action;
+
+    if (action === 'toggle-picker') {
+      const id = Number(e.target.closest('[data-action]').dataset.id);
+      openPickerId = (openPickerId === id) ? null : id;
+      renderRows();
+      return;
+    }
+
+    if (action === 'pick-airline') {
+      const el   = e.target.closest('[data-action]');
+      const id   = Number(el.dataset.id);
+      const code = el.dataset.code;
+      const row  = simRows.find(r => r.id === id);
+      if (row) row.airline = code;
+      openPickerId = null;
+      renderRows();
+      recalcSim();
+      return;
+    }
+
+    if (action === 'delete-row') {
+      const id = Number(e.target.closest('[data-action]').dataset.id);
+      simRows = simRows.filter(r => r.id !== id);
+      if (openPickerId === id) openPickerId = null;
+      if (simRows.length === 0) simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
+      renderRows();
+      return;
+    }
+
+    // Click on the card but not on a picker button/option → close any open picker
+    if (!e.target.closest('.sim-al-btn') && !e.target.closest('.sim-al-dropdown')) {
+      if (openPickerId !== null) { openPickerId = null; renderRows(); }
+    }
+  });
+
+  // Multiplier trigger toggle (separate button, outside sim-rows)
+  const multTrigger = document.getElementById('sim-mult-trigger');
+  const multPanel   = document.getElementById('sim-mult-panel');
+  if (multTrigger && multPanel) {
+    multTrigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = !multPanel.hidden;
+      multPanel.hidden = open;
+      multTrigger.classList.toggle('sim-mult-trigger--open', !open);
+    });
+    document.addEventListener('click', e => {
+      if (!multTrigger.contains(e.target) && !multPanel.contains(e.target)) {
+        multPanel.hidden = true;
+        multTrigger.classList.remove('sim-mult-trigger--open');
+      }
+    });
+  }
+
+  // Input changes (delegated on card)
+  card.addEventListener('input', e => {
+    const el = e.target;
+    if (!el.dataset.field) return;
+    const id  = Number(el.dataset.id);
+    const row = simRows.find(r => r.id === id);
+    if (!row) return;
+    const f = el.dataset.field;
+    if (f === 'dep')   { row.dep = el.value.trim().toUpperCase(); el.value = row.dep; }
+    if (f === 'arr')   { row.arr = el.value.trim().toUpperCase(); el.value = row.arr; }
+    if (f === 'cls')   { row.cls = el.value.trim().toUpperCase(); el.value = row.cls; }
+    if (f === 'times') { row.times = Math.max(1, parseInt(el.value, 10) || 1); }
+    recalcSim();
+  });
+
+  // Add-row button
+  document.getElementById('sim-add-row').addEventListener('click', () => {
+    simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
+    renderRows();
+  });
+
+  // Re-render when logos or flight data arrive
+  window.addEventListener('flightlog:logo-changed', () => { renderMultGrid(); renderRows(); });
+  onChange(evt => {
+    if (!evt) return;
+    if (evt.type === 'data:loaded') { renderMultGrid(); renderRows(); updateSimSummary(); }
+    if (evt.type === 'data:changed' || evt.type === 'program:changed') updateSimSummary();
+  });
+
+  // Initial render
+  simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
+  renderMultGrid();
+  renderRows();
+  if (store.ready) updateSimSummary();
 }
 
+// ── Calculation ───────────────────────────────────────────────────────────────
 function recalcSim() {
   let grand = 0;
-
   for (const row of simRows) {
-    const $tp = document.getElementById(`sim-tp-${row.id}`);
+    const $tp  = document.getElementById(`sim-tp-${row.id}`);
     const $tot = document.getElementById(`sim-total-${row.id}`);
-
     if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) {
       if ($tp) $tp.textContent = '—';
       if ($tot) $tot.textContent = '—';
       continue;
     }
-
     const a = store.airports.get(row.dep);
     const b = store.airports.get(row.arr);
     if (!a || !b) {
@@ -688,69 +695,48 @@ function recalcSim() {
       if ($tot) $tot.textContent = '—';
       continue;
     }
-
-    const distMi = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
-    const classMult = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
-    const airlineData = AY_AIRLINES.find(x => x.code === row.airline);
-    const airlineMult = airlineData ? airlineData.mult : 1.00;
-
-    const tpPerTrip = Math.round(distMi * classMult * airlineMult);
-    const tpTotal = tpPerTrip * row.times;
+    const distMi      = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
+    const classMult   = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
+    const airlineMult = (AY_AIRLINES.find(x => x.code === row.airline) || {}).mult || 1.00;
+    const tpPerTrip   = Math.round(distMi * classMult * airlineMult);
+    const tpTotal     = tpPerTrip * row.times;
     grand += tpTotal;
-
-    if ($tp) $tp.textContent = fmt(tpPerTrip);
-    if ($tot) $tot.textContent = fmt(tpTotal);
+    if ($tp)  $tp.textContent  = tpPerTrip.toLocaleString();
+    if ($tot) $tot.textContent = tpTotal.toLocaleString();
   }
-
-  const $grand = document.getElementById('sim-grand-total');
-  if ($grand) $grand.textContent = fmt(grand);
-
+  const $g = document.getElementById('sim-grand-total');
+  if ($g) $g.textContent = grand.toLocaleString();
   updateSimSummary(grand);
 }
 
 function updateSimSummary(simulatedExtra) {
-  // Current balance from the store
   const prog = PROGRAMS.find(p => p.id === 'ay');
   if (!prog) return;
+  const win     = computeWindow(prog, new Date());
+  const current = computeBalance(prog, win).total;
 
-  const now = new Date();
-  const window = computeWindow(prog, now);
-  const b = computeBalance(prog, window);
-  const current = b.total;
-
-  // If called without simulatedExtra, recompute from rows
   if (simulatedExtra === undefined) {
     let grand = 0;
     for (const row of simRows) {
       if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) continue;
-      const a = store.airports.get(row.dep);
-      const bb = store.airports.get(row.arr);
-      if (!a || !bb) continue;
-      const distMi = haversineKm(a.lat, a.lon, bb.lat, bb.lon) * 0.621371;
-      const classMult = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
-      const airlineData = AY_AIRLINES.find(x => x.code === row.airline);
-      const airlineMult = airlineData ? airlineData.mult : 1.00;
+      const a = store.airports.get(row.dep), b = store.airports.get(row.arr);
+      if (!a || !b) continue;
+      const distMi      = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
+      const classMult   = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
+      const airlineMult = (AY_AIRLINES.find(x => x.code === row.airline) || {}).mult || 1.00;
       grand += Math.round(distMi * classMult * airlineMult) * row.times;
     }
     simulatedExtra = grand;
   }
 
   const projected = current + simulatedExtra;
-  const needed = Math.max(0, SIM_TARGET - projected);
-
-  const $cur = document.getElementById('sim-current');
+  const needed    = Math.max(0, SIM_TARGET - projected);
+  const $cur  = document.getElementById('sim-current');
   const $proj = document.getElementById('sim-projected');
   const $need = document.getElementById('sim-needed');
-
-  if ($cur) $cur.textContent = fmt(current);
-  if ($proj) {
-    $proj.textContent = fmt(projected);
-    $proj.dataset.tone = projected >= SIM_TARGET ? 'good' : (projected >= SIM_TARGET * 0.75 ? 'warn' : 'bad');
-  }
-  if ($need) {
-    $need.textContent = needed > 0 ? fmt(needed) : '✓ Done';
-    $need.dataset.tone = needed === 0 ? 'good' : '';
-  }
+  if ($cur)  $cur.textContent  = current.toLocaleString();
+  if ($proj) { $proj.textContent = projected.toLocaleString(); $proj.dataset.tone = projected >= SIM_TARGET ? 'good' : projected >= SIM_TARGET * 0.75 ? 'warn' : 'bad'; }
+  if ($need) { $need.textContent = needed > 0 ? needed.toLocaleString() : '✓ Done'; $need.dataset.tone = needed === 0 ? 'good' : ''; }
 }
 
 // Haversine (also defined in data.js but we need it here without importing to avoid issues)
