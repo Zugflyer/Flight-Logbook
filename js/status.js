@@ -9,7 +9,13 @@
 // ============================================================================
 
 import { store, onChange, isHistoric, setProgramAdjustment } from './data.js';
-import { getLogoUrl } from './logos.js';
+import { getLogoUrl as _supabaseLogoUrl } from './logos.js';
+
+// Sim uses local assets/logos/<CODE>.png (committed to repo).
+// Falls back to Supabase Storage URL if the local file isn't there.
+function simLogoUrl(code) {
+  return `assets/logos/${code.toUpperCase()}.png`;
+}
 
 // ---------- Program definitions ----------
 // Logos live in assets/logos/. Files are PNGs (despite the original SVG
@@ -488,7 +494,7 @@ const AY_AIRLINES = [
       { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
       { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
     ]},
-  { code: 'BA', name: 'British Airways',    tierMult: 1.15,
+  { code: 'BA', name: 'British Airways',    tierMult: 1.25,
     classes: [
       { cabin:'First',           codes:['F'],                       pct: 3.00 },
       { cabin:'First',           codes:['A'],                       pct: 2.50 },
@@ -652,7 +658,7 @@ function initFinnairSim() {
     const strip = document.getElementById('sim-airline-logo-strip');
     if (!strip) return;
     strip.innerHTML = AY_AIRLINES.map((a, i) => {
-      const url = getLogoUrl(a.code);
+      const url = simLogoUrl(a.code);
       const sel = i === selectedAirlineIdx ? ' sim-logo-btn--sel' : '';
       return `<button type="button" class="sim-logo-btn${sel}" data-action="select-airline" data-idx="${i}" title="${a.name}">
         ${url
@@ -667,7 +673,7 @@ function initFinnairSim() {
     const panel = document.getElementById('sim-airline-panel');
     if (!panel) return;
     const a = AY_AIRLINES[selectedAirlineIdx];
-    const url = getLogoUrl(a.code);
+    const url = simLogoUrl(a.code);
     const tierPctLabel = a.tierMult === 1 ? '100%' : `${Math.round(a.tierMult * 100)}%`;
     const tierHighlight = a.tierMult > 1 ? ' sim-tier-hi' : '';
 
@@ -707,7 +713,7 @@ function initFinnairSim() {
     if (!container) return;
     container.innerHTML = simRows.map(row => {
       const al = AY_AIRLINES.find(a => a.code === row.airline) || AY_AIRLINES[0];
-      const url = getLogoUrl(al.code);
+      const url = simLogoUrl(al.code);
       const isOpen = openPickerId === row.id;
       return `<div class="sim-row" data-id="${row.id}">
         <div class="sim-col-airline">
@@ -721,7 +727,7 @@ function initFinnairSim() {
             </button>
             ${isOpen ? `<div class="sim-al-dropdown">
               ${AY_AIRLINES.map(a => {
-                const u = getLogoUrl(a.code);
+                const u = simLogoUrl(a.code);
                 return `<div class="sim-al-option${a.code === row.airline ? ' sim-al-option--sel' : ''}"
                    data-action="pick-airline" data-id="${row.id}" data-code="${a.code}">
                   <span class="sim-al-opt-logo">
