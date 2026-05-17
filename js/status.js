@@ -120,17 +120,11 @@ export function initStatus() {
                 </div>
               </div>
 
-              <div class="sim-multipliers">
-                <div class="sim-mult-label">Earning multipliers</div>
-                <div class="sim-mult-dropdown-wrap" id="sim-mult-dropdown-wrap">
-                  <button class="sim-mult-trigger" id="sim-mult-trigger" type="button">
-                    <span class="sim-mult-trigger-inner">
-                      <span class="sim-mult-trigger-logos" id="sim-mult-trigger-logos"></span>
-                      <span class="sim-mult-trigger-text">View by airline</span>
-                    </span>
-                    <span class="sim-mult-chevron">▾</span>
-                  </button>
-                  <div class="sim-mult-panel" id="sim-mult-panel" hidden></div>
+              <div class="sim-earnings-section">
+                <div class="sim-mult-label">Earning rates by airline</div>
+                <div class="sim-airline-picker-wrap" id="sim-airline-picker-wrap">
+                  <div class="sim-airline-logo-strip" id="sim-airline-logo-strip"></div>
+                  <div class="sim-airline-panel" id="sim-airline-panel" hidden></div>
                 </div>
               </div>
 
@@ -492,66 +486,294 @@ const SIM_TARGET = 57500;
 let simRows = [];   // [{ id, airline, dep, arr, class, times }]
 let simCounter = 0;
 
+// ============================================================================
+// Finnair Tier Point Simulator
+// ============================================================================
+
+// Earning tables per airline — booking class → multiplier (as decimal fraction of miles)
+// image1 = British Airways table (Alaska, American, BA, Cathay, Fiji, Iberia, JAL, Malaysian)
+// image2 = Alaska table (Oman Air)
+// image3 = Qantas/Qatar table
+// image4 = Royal Air Maroc table
+// image5 = Royal Jordanian / SriLankan table
+const AY_AIRLINES = [
+  { code: 'AS', name: 'Alaska Airlines',    tierMult: 1.00,
+    classes: [
+      { cabin:'Business Studio', codes:['F'],                       pct: 2.40 },
+      { cabin:'Business Studio', codes:['A'],                       pct: 2.00 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.00 },
+      { cabin:'Business',        codes:['I','P'],                   pct: 1.50 },
+      { cabin:'Economy',         codes:['Y','B','H','K'],           pct: 1.00 },
+      { cabin:'Economy',         codes:['M','L','V','S'],           pct: 0.50 },
+      { cabin:'Economy',         codes:['G','N','Q','O','R','T'],   pct: 0.25 },
+      { cabin:'Economy',         codes:['E'],                       pct: 0.10 },
+    ]},
+  { code: 'HA', name: 'Hawaiian Airlines',  tierMult: 1.00,
+    classes: [
+      { cabin:'Business Studio', codes:['F'],                       pct: 2.40 },
+      { cabin:'Business Studio', codes:['A'],                       pct: 2.00 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.00 },
+      { cabin:'Business',        codes:['I','P'],                   pct: 1.50 },
+      { cabin:'Economy',         codes:['Y','B','H','K'],           pct: 1.00 },
+      { cabin:'Economy',         codes:['M','L','V','S'],           pct: 0.50 },
+      { cabin:'Economy',         codes:['G','N','Q','O','R','T'],   pct: 0.25 },
+      { cabin:'Economy',         codes:['E'],                       pct: 0.10 },
+    ]},
+  { code: 'AA', name: 'American Airlines',  tierMult: 1.25,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'BA', name: 'British Airways',    tierMult: 1.15,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'CX', name: 'Cathay Pacific',     tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'FJ', name: 'Fiji Airways',       tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'IB', name: 'Iberia',             tierMult: 1.25,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'JL', name: 'Japan Airlines',     tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'MH', name: 'Malaysia Airlines',  tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+  { code: 'WY', name: 'Oman Air',           tierMult: 1.00,
+    classes: [
+      { cabin:'Business Studio', codes:['F'],                       pct: 2.40 },
+      { cabin:'Business Studio', codes:['A'],                       pct: 2.00 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.00 },
+      { cabin:'Business',        codes:['I','P'],                   pct: 1.50 },
+      { cabin:'Economy',         codes:['Y','B','H','K'],           pct: 1.00 },
+      { cabin:'Economy',         codes:['M','L','V','S'],           pct: 0.50 },
+      { cabin:'Economy',         codes:['G','N','Q','O','R','T'],   pct: 0.25 },
+      { cabin:'Economy',         codes:['E'],                       pct: 0.10 },
+    ]},
+  { code: 'QF', name: 'Qantas',             tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['A','F'],                   pct: 1.50 },
+      { cabin:'Business',        codes:['C','J','I','D'],           pct: 1.25 },
+      { cabin:'Economy',         codes:['Y','B','H','K','W','R','T'], pct: 1.00 },
+      { cabin:'Economy',         codes:['L','M','S','G','V'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['N','O','Q'],               pct: 0.25 },
+    ]},
+  { code: 'QR', name: 'Qatar Airways',      tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['A','F'],                   pct: 1.50 },
+      { cabin:'Business',        codes:['C','J','I','D'],           pct: 1.25 },
+      { cabin:'Economy',         codes:['Y','B','H','K','W','R','T'], pct: 1.00 },
+      { cabin:'Economy',         codes:['L','M','S','G','V'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['N','O','Q'],               pct: 0.25 },
+    ]},
+  { code: 'AT', name: 'Royal Air Maroc',    tierMult: 1.00,
+    classes: [
+      { cabin:'Business',        codes:['J','C','D'],               pct: 1.25 },
+      { cabin:'Business',        codes:['I'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','B','H'],               pct: 1.00 },
+      { cabin:'Economy',         codes:['K','M'],                   pct: 0.50 },
+      { cabin:'Economy',         codes:['L','V','S','N','Q','O','T','R','W'], pct: 0.25 },
+    ]},
+  { code: 'RJ', name: 'Royal Jordanian',    tierMult: 1.00,
+    classes: [
+      { cabin:'Business',        codes:['J','C','D'],               pct: 1.50 },
+      { cabin:'Business',        codes:['I','Z'],                   pct: 1.25 },
+      { cabin:'Economy',         codes:['Y'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['B','H','K','M'],           pct: 0.75 },
+      { cabin:'Economy',         codes:['L','V','S','N','Q'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['O','P','W'],               pct: 0.25 },
+    ]},
+  { code: 'UL', name: 'SriLankan Airlines', tierMult: 1.00,
+    classes: [
+      { cabin:'Business',        codes:['J','C','D'],               pct: 1.50 },
+      { cabin:'Business',        codes:['I','Z'],                   pct: 1.25 },
+      { cabin:'Economy',         codes:['Y'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['B','H','K','M'],           pct: 0.75 },
+      { cabin:'Economy',         codes:['L','V','S','N','Q'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['O','P','W'],               pct: 0.25 },
+    ]},
+  { code: 'AY', name: 'Finnair',            tierMult: 1.00,
+    classes: [
+      { cabin:'First',           codes:['F'],                       pct: 3.00 },
+      { cabin:'First',           codes:['A'],                       pct: 2.50 },
+      { cabin:'Business',        codes:['J','C','D'],               pct: 2.50 },
+      { cabin:'Business',        codes:['R','I'],                   pct: 1.50 },
+      { cabin:'Premium Economy', codes:['W'],                       pct: 1.50 },
+      { cabin:'Premium Economy', codes:['P'],                       pct: 1.00 },
+      { cabin:'Economy',         codes:['Y','H'],                   pct: 1.00 },
+      { cabin:'Economy',         codes:['K','L','M','V','S'],       pct: 0.50 },
+      { cabin:'Economy',         codes:['B','G','O','Q','N'],       pct: 0.25 },
+    ]},
+];
+
+// Build a flat class→pct lookup per airline for fast calculation
+function buildClassMap(airline) {
+  const map = {};
+  for (const row of airline.classes) {
+    for (const c of row.codes) map[c.toUpperCase()] = row.pct;
+  }
+  return map;
+}
+
+const SIM_TARGET = 57500;
+let simRows   = [];
+let simCounter = 0;
+let selectedAirlineIdx = 0;  // index into AY_AIRLINES for the earnings panel
+
 function initFinnairSim() {
   const card = document.getElementById('ay-sim-card');
   if (!card) return;
 
-  // Which airline-picker dropdown is currently open (row id, or null)
-  let openPickerId = null;
+  let openPickerId = null;  // which sim-row airline dropdown is open
 
-  // ── Render helpers ────────────────────────────────────────────────────────
-
-  function logoFor(code, cls) {
-    const url = getLogoUrl(code);
-    return url
-      ? `<img class="${cls}" src="${url}" alt="${code}">`
-      : `<span class="sim-logo-chip">${code}</span>`;
-  }
-
-  function renderMultGrid() {
-    const panel        = document.getElementById('sim-mult-panel');
-    const triggerLogos = document.getElementById('sim-mult-trigger-logos');
-    if (!panel) return;
-    panel.innerHTML = AY_AIRLINES.map(a => {
-      const pct   = a.mult === 1 ? '100%' : `${Math.round(a.mult * 100)}%`;
-      const hiCls = a.mult > 1 ? ' sim-mult-row--hi' : '';
-      return `<div class="sim-mult-row${hiCls}">
-        <div class="sim-mult-row-logo-wrap">${logoFor(a.code, 'sim-mult-row-logo')}</div>
-        <span class="sim-mult-row-code">${a.code}</span>
-        <span class="sim-mult-row-name">${a.name}</span>
-        <span class="sim-mult-row-pct">${pct}</span>
-      </div>`;
+  // ── Airline logo strip (the "dropdown trigger") ───────────────────────────
+  function renderLogoStrip() {
+    const strip = document.getElementById('sim-airline-logo-strip');
+    if (!strip) return;
+    strip.innerHTML = AY_AIRLINES.map((a, i) => {
+      const url = getLogoUrl(a.code);
+      const sel = i === selectedAirlineIdx ? ' sim-logo-btn--sel' : '';
+      return `<button type="button" class="sim-logo-btn${sel}" data-action="select-airline" data-idx="${i}" title="${a.name}">
+        ${url
+          ? `<img class="sim-logo-btn-img" src="${url}" alt="${a.code}">`
+          : `<span class="sim-logo-chip">${a.code}</span>`}
+      </button>`;
     }).join('');
-    if (triggerLogos) {
-      triggerLogos.innerHTML = AY_AIRLINES.slice(0, 6).map(a => {
-        const url = getLogoUrl(a.code);
-        return url ? `<img class="sim-trigger-mini-logo" src="${url}" alt="${a.code}">` : '';
-      }).join('');
-    }
   }
 
+  // ── Earning table panel for selected airline ──────────────────────────────
+  function renderEarningsPanel() {
+    const panel = document.getElementById('sim-airline-panel');
+    if (!panel) return;
+    const a = AY_AIRLINES[selectedAirlineIdx];
+    const url = getLogoUrl(a.code);
+    const tierPctLabel = a.tierMult === 1 ? '100%' : `${Math.round(a.tierMult * 100)}%`;
+    const tierHighlight = a.tierMult > 1 ? ' sim-tier-hi' : '';
+
+    panel.innerHTML = `
+      <div class="sim-panel-header">
+        <div class="sim-panel-logo-wrap">
+          ${url ? `<img class="sim-panel-logo" src="${url}" alt="${a.code}">` : `<span class="sim-logo-chip sim-logo-chip--lg">${a.code}</span>`}
+        </div>
+        <div class="sim-panel-meta">
+          <span class="sim-panel-name">${a.name}</span>
+          <span class="sim-panel-tier${tierHighlight}">Tier multiplier: <strong>${tierPctLabel}</strong></span>
+        </div>
+      </div>
+      <table class="sim-earn-table">
+        <thead>
+          <tr>
+            <th>Cabin</th>
+            <th>Booking classes</th>
+            <th>Multiplier</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${a.classes.map(row => `
+            <tr>
+              <td>${row.cabin}</td>
+              <td class="sim-earn-codes">${row.codes.join(', ')}</td>
+              <td class="sim-earn-pct">${Math.round(row.pct * 100)}%</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+    panel.hidden = false;
+  }
+
+  // ── Sim row rendering (innerHTML only, no listeners here) ─────────────────
   function renderRows() {
     const container = document.getElementById('sim-rows');
     if (!container) return;
     container.innerHTML = simRows.map(row => {
       const al = AY_AIRLINES.find(a => a.code === row.airline) || AY_AIRLINES[0];
+      const url = getLogoUrl(al.code);
       const isOpen = openPickerId === row.id;
       return `<div class="sim-row" data-id="${row.id}">
         <div class="sim-col-airline">
           <div class="sim-al-picker">
             <button type="button" class="sim-al-btn${isOpen ? ' sim-al-btn--open' : ''}" data-action="toggle-picker" data-id="${row.id}">
-              <span class="sim-al-btn-logo">${logoFor(al.code, 'sim-al-logo')}</span>
+              <span class="sim-al-btn-logo">
+                ${url ? `<img class="sim-al-logo" src="${url}" alt="${al.code}">` : `<span class="sim-logo-chip">${al.code}</span>`}
+              </span>
               <span class="sim-al-btn-code">${al.code}</span>
               <span class="sim-al-chevron">${isOpen ? '▴' : '▾'}</span>
             </button>
             ${isOpen ? `<div class="sim-al-dropdown">
-              ${AY_AIRLINES.map(a => `
-                <div class="sim-al-option${a.code === row.airline ? ' sim-al-option--sel' : ''}"
-                     data-action="pick-airline" data-id="${row.id}" data-code="${a.code}">
-                  <span class="sim-al-opt-logo">${logoFor(a.code, 'sim-al-opt-logo-img')}</span>
+              ${AY_AIRLINES.map(a => {
+                const u = getLogoUrl(a.code);
+                return `<div class="sim-al-option${a.code === row.airline ? ' sim-al-option--sel' : ''}"
+                   data-action="pick-airline" data-id="${row.id}" data-code="${a.code}">
+                  <span class="sim-al-opt-logo">
+                    ${u ? `<img class="sim-al-opt-logo-img" src="${u}" alt="${a.code}">` : `<span class="sim-logo-chip">${a.code}</span>`}
+                  </span>
                   <span class="sim-al-opt-code">${a.code}</span>
                   <span class="sim-al-opt-name">${a.name}</span>
-                </div>`).join('')}
+                </div>`;
+              }).join('')}
             </div>` : ''}
           </div>
         </div>
@@ -585,61 +807,52 @@ function initFinnairSim() {
     recalcSim();
   }
 
-  // ── Single delegated click handler on the whole sim card ─────────────────
-  card.addEventListener('click', e => {
-    const action = e.target.closest('[data-action]')?.dataset.action;
+  function fullRender() {
+    renderLogoStrip();
+    renderEarningsPanel();
+    renderRows();
+  }
 
+  // ── Single delegated click handler on the card ────────────────────────────
+  card.addEventListener('click', e => {
+    const el = e.target.closest('[data-action]');
+    if (!el) {
+      // Click outside any picker → close
+      if (openPickerId !== null) { openPickerId = null; renderRows(); }
+      return;
+    }
+    const action = el.dataset.action;
+
+    if (action === 'select-airline') {
+      selectedAirlineIdx = Number(el.dataset.idx);
+      renderLogoStrip();
+      renderEarningsPanel();
+      return;
+    }
     if (action === 'toggle-picker') {
-      const id = Number(e.target.closest('[data-action]').dataset.id);
+      const id = Number(el.dataset.id);
       openPickerId = (openPickerId === id) ? null : id;
       renderRows();
       return;
     }
-
     if (action === 'pick-airline') {
-      const el   = e.target.closest('[data-action]');
       const id   = Number(el.dataset.id);
       const code = el.dataset.code;
       const row  = simRows.find(r => r.id === id);
       if (row) row.airline = code;
       openPickerId = null;
       renderRows();
-      recalcSim();
       return;
     }
-
     if (action === 'delete-row') {
-      const id = Number(e.target.closest('[data-action]').dataset.id);
+      const id = Number(el.dataset.id);
       simRows = simRows.filter(r => r.id !== id);
       if (openPickerId === id) openPickerId = null;
       if (simRows.length === 0) simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
       renderRows();
       return;
     }
-
-    // Click on the card but not on a picker button/option → close any open picker
-    if (!e.target.closest('.sim-al-btn') && !e.target.closest('.sim-al-dropdown')) {
-      if (openPickerId !== null) { openPickerId = null; renderRows(); }
-    }
   });
-
-  // Multiplier trigger toggle (separate button, outside sim-rows)
-  const multTrigger = document.getElementById('sim-mult-trigger');
-  const multPanel   = document.getElementById('sim-mult-panel');
-  if (multTrigger && multPanel) {
-    multTrigger.addEventListener('click', e => {
-      e.stopPropagation();
-      const open = !multPanel.hidden;
-      multPanel.hidden = open;
-      multTrigger.classList.toggle('sim-mult-trigger--open', !open);
-    });
-    document.addEventListener('click', e => {
-      if (!multTrigger.contains(e.target) && !multPanel.contains(e.target)) {
-        multPanel.hidden = true;
-        multTrigger.classList.remove('sim-mult-trigger--open');
-      }
-    });
-  }
 
   // Input changes (delegated on card)
   card.addEventListener('input', e => {
@@ -662,18 +875,17 @@ function initFinnairSim() {
     renderRows();
   });
 
-  // Re-render when logos or flight data arrive
-  window.addEventListener('flightlog:logo-changed', () => { renderMultGrid(); renderRows(); });
+  // Re-render when logos arrive or flight data loads
+  window.addEventListener('flightlog:logo-changed', fullRender);
   onChange(evt => {
     if (!evt) return;
-    if (evt.type === 'data:loaded') { renderMultGrid(); renderRows(); updateSimSummary(); }
+    if (evt.type === 'data:loaded') { fullRender(); updateSimSummary(); }
     if (evt.type === 'data:changed' || evt.type === 'program:changed') updateSimSummary();
   });
 
-  // Initial render
+  // Seed one row and do initial render
   simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
-  renderMultGrid();
-  renderRows();
+  fullRender();
   if (store.ready) updateSimSummary();
 }
 
@@ -684,21 +896,22 @@ function recalcSim() {
     const $tp  = document.getElementById(`sim-tp-${row.id}`);
     const $tot = document.getElementById(`sim-total-${row.id}`);
     if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) {
-      if ($tp) $tp.textContent = '—';
+      if ($tp)  $tp.textContent  = '—';
       if ($tot) $tot.textContent = '—';
       continue;
     }
     const a = store.airports.get(row.dep);
     const b = store.airports.get(row.arr);
     if (!a || !b) {
-      if ($tp) { $tp.textContent = '?'; $tp.title = 'Airport not found'; }
+      if ($tp)  { $tp.textContent = '?'; $tp.title = 'Airport not found'; }
       if ($tot) $tot.textContent = '—';
       continue;
     }
+    const airline     = AY_AIRLINES.find(x => x.code === row.airline) || AY_AIRLINES[0];
+    const classMap    = buildClassMap(airline);
+    const classPct    = classMap[row.cls.toUpperCase()] ?? 1.00;
     const distMi      = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
-    const classMult   = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
-    const airlineMult = (AY_AIRLINES.find(x => x.code === row.airline) || {}).mult || 1.00;
-    const tpPerTrip   = Math.round(distMi * classMult * airlineMult);
+    const tpPerTrip   = Math.round(distMi * classPct * airline.tierMult);
     const tpTotal     = tpPerTrip * row.times;
     grand += tpTotal;
     if ($tp)  $tp.textContent  = tpPerTrip.toLocaleString();
@@ -712,8 +925,7 @@ function recalcSim() {
 function updateSimSummary(simulatedExtra) {
   const prog = PROGRAMS.find(p => p.id === 'ay');
   if (!prog) return;
-  const win     = computeWindow(prog, new Date());
-  const current = computeBalance(prog, win).total;
+  const current = computeBalance(prog, computeWindow(prog, new Date())).total;
 
   if (simulatedExtra === undefined) {
     let grand = 0;
@@ -721,10 +933,11 @@ function updateSimSummary(simulatedExtra) {
       if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) continue;
       const a = store.airports.get(row.dep), b = store.airports.get(row.arr);
       if (!a || !b) continue;
-      const distMi      = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
-      const classMult   = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
-      const airlineMult = (AY_AIRLINES.find(x => x.code === row.airline) || {}).mult || 1.00;
-      grand += Math.round(distMi * classMult * airlineMult) * row.times;
+      const airline   = AY_AIRLINES.find(x => x.code === row.airline) || AY_AIRLINES[0];
+      const classMap  = buildClassMap(airline);
+      const classPct  = classMap[row.cls.toUpperCase()] ?? 1.00;
+      const distMi    = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
+      grand += Math.round(distMi * classPct * airline.tierMult) * row.times;
     }
     simulatedExtra = grand;
   }
