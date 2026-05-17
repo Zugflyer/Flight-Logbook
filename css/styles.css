@@ -2972,3 +2972,140 @@ button.ghost.small {
   color: var(--prog-accent);
 }
 
+
+/* ── Flight simulator — vertical cards ─────────────────────────────────── */
+.sim-flights-section {
+  margin-top: 4px;
+}
+.sim-sect-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+  margin-bottom: 8px;
+}
+#sim-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim-flight-card {
+  position: relative;
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim-del-btn--card {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--fg-3);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.sim-del-btn--card:hover { background: #fee2e2; color: #c0392b; }
+.sim-flight-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 32px 0;
+}
+.sim-flight-logo {
+  max-width: 100%;
+  max-height: 38px;
+  object-fit: contain;
+  display: block;
+}
+.sim-flight-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+}
+.sim-class-lg,
+.sim-iata-lg,
+.sim-times-lg {
+  width: 100%;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 8px 12px;
+  border: 1.5px solid var(--accent-line);
+  border-radius: 7px;
+  background: var(--bg-0);
+  color: var(--fg-1);
+  text-align: center;
+  box-sizing: border-box;
+}
+.sim-class-lg { max-width: 80px; }
+.sim-class-lg:focus,
+.sim-iata-lg:focus,
+.sim-times-lg:focus {
+  outline: none;
+  border-color: var(--prog-accent);
+  box-shadow: 0 0 0 3px var(--prog-accent-soft);
+}
+.sim-dist-val {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+  padding: 2px 0;
+}
+.sim-flight-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--prog-accent-soft);
+  border: 1.5px solid var(--prog-accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.sim-flight-result--total {
+  background: var(--bg-0);
+  border-color: var(--accent-line);
+}
+.sim-result-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sim-result-val {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--prog-accent);
+}
+.sim-result-val--total {
+  font-size: 20px;
+  color: var(--fg-1);
+}
+.sim-flight-times {
+  border-top: 1px solid var(--accent-line);
+  padding-top: 10px;
+}
+.sim-times-lg { max-width: 100px; }
