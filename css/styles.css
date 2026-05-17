@@ -2751,7 +2751,7 @@ button.ghost.small {
 }
 .sim-table-head {
   display: grid;
-  grid-template-columns: 140px 52px 52px 44px 64px 44px 64px 28px;
+  grid-template-columns: 150px 52px 52px 44px 64px 44px 64px 28px;
   gap: 4px;
   padding: 0 2px 6px;
   font-size: 10px;
@@ -2763,7 +2763,7 @@ button.ghost.small {
 }
 .sim-row {
   display: grid;
-  grid-template-columns: 140px 52px 52px 44px 64px 44px 64px 28px;
+  grid-template-columns: 150px 52px 52px 44px 64px 44px 64px 28px;
   gap: 4px;
   align-items: center;
 }
@@ -2781,30 +2781,120 @@ button.ghost.small {
 .sim-col-tp, .sim-col-total { justify-content: flex-end; }
 .sim-col-del { justify-content: center; }
 
-/* Airline selector with logo preview */
-.sim-airline-select-wrap {
+/* ---- Custom airline picker in sim rows ---- */
+.sim-al-picker {
+  position: relative;
+  width: 100%;
+}
+.sim-al-btn {
   display: flex;
   align-items: center;
   gap: 5px;
   width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  background: var(--bg-0);
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--fg-1);
+  transition: border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.sim-airline-thumb {
-  width: 28px;
-  height: 18px;
-  object-fit: contain;
+.sim-al-btn:hover { border-color: var(--prog-accent); }
+.sim-al-btn-logo {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  width: 32px;
+}
+.sim-al-logo {
+  max-width: 32px;
+  max-height: 18px;
+  object-fit: contain;
   display: block;
 }
-.sim-select {
+.sim-al-btn-code {
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
   flex: 1;
   min-width: 0;
+}
+.sim-al-chevron {
   font-size: 11px;
-  padding: 3px 2px;
-  border: 1px solid var(--accent-line);
-  border-radius: 4px;
+  color: var(--fg-3);
+  flex-shrink: 0;
+}
+.sim-al-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  min-width: 200px;
   background: var(--bg-0);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+  z-index: 300;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.sim-al-option {
+  display: grid;
+  grid-template-columns: 38px 28px 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bg-2);
+  transition: background 0.1s;
+}
+.sim-al-option:last-child { border-bottom: none; }
+.sim-al-option:hover { background: var(--bg-1); }
+.sim-al-option--sel { background: var(--prog-accent-soft); }
+.sim-al-option--sel:hover { background: var(--prog-accent-soft); filter: brightness(0.97); }
+.sim-al-opt-logo {
+  width: 38px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sim-al-opt-logo-img {
+  max-width: 38px;
+  max-height: 20px;
+  object-fit: contain;
+  display: block;
+}
+.sim-al-opt-code {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--fg-1);
-  height: 26px;
+  font-family: var(--font-mono, monospace);
+}
+.sim-al-opt-name {
+  font-size: 11px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Shared logo-chip fallback (when no logo in Supabase) */
+.sim-logo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  border-radius: 3px;
+  padding: 1px 4px;
+  min-width: 24px;
+  height: 16px;
 }
 .sim-input {
   width: 100%;
@@ -2819,7 +2909,7 @@ button.ghost.small {
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
   text-transform: uppercase;
 }
-.sim-input:focus, .sim-select:focus {
+.sim-input:focus {
   outline: none;
   border-color: var(--prog-accent);
   box-shadow: 0 0 0 2px var(--prog-accent-soft);
