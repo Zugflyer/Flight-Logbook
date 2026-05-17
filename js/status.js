@@ -134,23 +134,14 @@ export function initStatus() {
                 </div>
               </div>
 
-              <div class="sim-table-wrap">
-                <div class="sim-table-head">
-                  <span class="sim-col-airline">Airline</span>
-                  <span class="sim-col-dep">DEP</span>
-                  <span class="sim-col-arr">ARR</span>
-                  <span class="sim-col-class">Class</span>
-                  <span class="sim-col-tp">TP/trip</span>
-                  <span class="sim-col-times">×</span>
-                  <span class="sim-col-total">Total TP</span>
-                  <span class="sim-col-del"></span>
-                </div>
+              <div class="sim-flights-section">
+                <div class="sim-sect-label">Flight simulator</div>
                 <div id="sim-rows"></div>
                 <button class="sim-add-btn" id="sim-add-row">+ Add flight</button>
               </div>
 
               <div class="sim-grand-total-row">
-                <span class="sim-grand-label">Simulated tier points</span>
+                <span class="sim-grand-label">Total simulated tier points</span>
                 <span class="sim-grand-val" id="sim-grand-total">0</span>
               </div>
             </div>
@@ -698,59 +689,57 @@ function initFinnairSim() {
   function renderRows() {
     const container = document.getElementById('sim-rows');
     if (!container) return;
+    // Airline is always the one selected in the earnings panel above
+    const al  = AY_AIRLINES[selectedAirlineIdx] || AY_AIRLINES[0];
+    const url = simLogoUrl(al.code);
+
     container.innerHTML = simRows.map(row => {
-      const al = AY_AIRLINES.find(a => a.code === row.airline) || AY_AIRLINES[0];
-      const url = simLogoUrl(al.code);
-      const isOpen = openPickerId === row.id;
-      return `<div class="sim-row" data-id="${row.id}">
-        <div class="sim-col-airline">
-          <div class="sim-al-picker">
-            <button type="button" class="sim-al-btn${isOpen ? ' sim-al-btn--open' : ''}" data-action="toggle-picker" data-id="${row.id}">
-              <span class="sim-al-btn-logo">
-                ${url ? `<img class="sim-al-logo" src="${url}" alt="${al.code}">` : `<span class="sim-logo-chip">${al.code}</span>`}
-              </span>
-              <span class="sim-al-btn-code">${al.code}</span>
-              <span class="sim-al-chevron">${isOpen ? '▴' : '▾'}</span>
-            </button>
-            ${isOpen ? `<div class="sim-al-dropdown">
-              ${AY_AIRLINES.map(a => {
-                const u = simLogoUrl(a.code);
-                return `<div class="sim-al-option${a.code === row.airline ? ' sim-al-option--sel' : ''}"
-                   data-action="pick-airline" data-id="${row.id}" data-code="${a.code}">
-                  <span class="sim-al-opt-logo">
-                    ${u ? `<img class="sim-al-opt-logo-img" src="${u}" alt="${a.code}">` : `<span class="sim-logo-chip">${a.code}</span>`}
-                  </span>
-                  <span class="sim-al-opt-code">${a.code}</span>
-                  <span class="sim-al-opt-name">${a.name}</span>
-                </div>`;
-              }).join('')}
-            </div>` : ''}
-          </div>
+      // Sync row airline to selected airline
+      row.airline = al.code;
+      return `<div class="sim-flight-card" data-id="${row.id}">
+        <button class="sim-del-btn sim-del-btn--card" data-action="delete-row" data-id="${row.id}" title="Remove">×</button>
+
+        <div class="sim-flight-logo-wrap">
+          ${url ? `<img class="sim-flight-logo" src="${url}" alt="${al.code}">` : `<span class="sim-logo-chip sim-logo-chip--lg">${al.code}</span>`}
         </div>
-        <div class="sim-col-dep">
-          <input class="sim-input sim-iata" type="text" maxlength="3" placeholder="DEP"
-            value="${row.dep}" data-field="dep" data-id="${row.id}">
-        </div>
-        <div class="sim-col-arr">
-          <input class="sim-input sim-iata" type="text" maxlength="3" placeholder="ARR"
-            value="${row.arr}" data-field="arr" data-id="${row.id}">
-        </div>
-        <div class="sim-col-class">
-          <input class="sim-input sim-class" type="text" maxlength="1" placeholder="Y"
+
+        <div class="sim-flight-field">
+          <label class="sim-field-label">Booking class</label>
+          <input class="sim-input sim-class-lg" type="text" maxlength="1" placeholder="Y"
             value="${row.cls}" data-field="cls" data-id="${row.id}">
         </div>
-        <div class="sim-col-tp">
-          <span class="sim-tp-result" id="sim-tp-${row.id}">—</span>
+
+        <div class="sim-flight-field">
+          <label class="sim-field-label">From</label>
+          <input class="sim-input sim-iata-lg" type="text" maxlength="3" placeholder="ZRH"
+            value="${row.dep}" data-field="dep" data-id="${row.id}">
         </div>
-        <div class="sim-col-times">
-          <input class="sim-input sim-times" type="number" min="1" step="1"
+
+        <div class="sim-flight-field">
+          <label class="sim-field-label">To</label>
+          <input class="sim-input sim-iata-lg" type="text" maxlength="3" placeholder="LHR"
+            value="${row.arr}" data-field="arr" data-id="${row.id}">
+        </div>
+
+        <div class="sim-flight-field">
+          <label class="sim-field-label">Distance</label>
+          <div class="sim-dist-val" id="sim-dist-${row.id}">—</div>
+        </div>
+
+        <div class="sim-flight-result">
+          <span class="sim-result-label">Tier points / flight</span>
+          <span class="sim-result-val" id="sim-tp-${row.id}">—</span>
+        </div>
+
+        <div class="sim-flight-field sim-flight-times">
+          <label class="sim-field-label">Number of flights</label>
+          <input class="sim-input sim-times-lg" type="number" min="1" step="1"
             value="${row.times}" data-field="times" data-id="${row.id}">
         </div>
-        <div class="sim-col-total">
-          <span class="sim-tp-total" id="sim-total-${row.id}">—</span>
-        </div>
-        <div class="sim-col-del">
-          <button class="sim-del-btn" data-action="delete-row" data-id="${row.id}" title="Remove">×</button>
+
+        <div class="sim-flight-result sim-flight-result--total">
+          <span class="sim-result-label">Total tier points</span>
+          <span class="sim-result-val sim-result-val--total" id="sim-total-${row.id}">—</span>
         </div>
       </div>`;
     }).join('');
@@ -777,21 +766,6 @@ function initFinnairSim() {
       selectedAirlineIdx = Number(el.dataset.idx);
       renderLogoStrip();
       renderEarningsPanel();
-      return;
-    }
-    if (action === 'toggle-picker') {
-      const id = Number(el.dataset.id);
-      openPickerId = (openPickerId === id) ? null : id;
-      renderRows();
-      return;
-    }
-    if (action === 'pick-airline') {
-      const id   = Number(el.dataset.id);
-      const code = el.dataset.code;
-      const row  = simRows.find(r => r.id === id);
-      if (row) row.airline = code;
-      openPickerId = null;
-      renderRows();
       return;
     }
     if (action === 'delete-row') {
@@ -864,8 +838,10 @@ function recalcSim() {
     const tpPerTrip   = Math.round(distMi * classPct * airline.tierMult);
     const tpTotal     = tpPerTrip * row.times;
     grand += tpTotal;
-    if ($tp)  $tp.textContent  = tpPerTrip.toLocaleString();
-    if ($tot) $tot.textContent = tpTotal.toLocaleString();
+    const $dist = document.getElementById(`sim-dist-${row.id}`);
+    if ($dist) $dist.textContent = Math.round(distMi).toLocaleString() + ' mi';
+    if ($tp)   $tp.textContent   = tpPerTrip.toLocaleString();
+    if ($tot)  $tot.textContent  = tpTotal.toLocaleString();
   }
   const $g = document.getElementById('sim-grand-total');
   if ($g) $g.textContent = grand.toLocaleString();
