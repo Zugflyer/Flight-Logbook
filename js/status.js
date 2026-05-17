@@ -93,6 +93,58 @@ export function initStatus() {
               </div>
               <div class="pace-axis"><span>JAN</span><span>DEC</span></div>
             </div>
+
+            ${p.id === 'ay' ? `
+            <div class="status-card sim-card" id="ay-sim-card">
+              <div class="status-card-label">
+                <span>Tier point simulator</span>
+              </div>
+
+              <div class="sim-summary-row">
+                <div class="sim-summary-item">
+                  <span class="sim-summary-label">Target</span>
+                  <span class="sim-summary-val" id="sim-target">57,500</span>
+                </div>
+                <div class="sim-summary-item">
+                  <span class="sim-summary-label">Current</span>
+                  <span class="sim-summary-val sim-current" id="sim-current">—</span>
+                </div>
+                <div class="sim-summary-item">
+                  <span class="sim-summary-label">Simulated</span>
+                  <span class="sim-summary-val sim-projected" id="sim-projected">—</span>
+                </div>
+                <div class="sim-summary-item">
+                  <span class="sim-summary-label">Still needed</span>
+                  <span class="sim-summary-val sim-needed" id="sim-needed">—</span>
+                </div>
+              </div>
+
+              <div class="sim-multipliers" id="sim-multipliers">
+                <div class="sim-mult-label">Earning multipliers</div>
+                <div class="sim-mult-grid" id="sim-mult-grid"></div>
+              </div>
+
+              <div class="sim-table-wrap">
+                <div class="sim-table-head">
+                  <span class="sim-col-airline">Airline</span>
+                  <span class="sim-col-dep">DEP</span>
+                  <span class="sim-col-arr">ARR</span>
+                  <span class="sim-col-class">Class</span>
+                  <span class="sim-col-tp">TP/trip</span>
+                  <span class="sim-col-times">×</span>
+                  <span class="sim-col-total">Total TP</span>
+                  <span class="sim-col-del"></span>
+                </div>
+                <div id="sim-rows"></div>
+                <button class="sim-add-btn" id="sim-add-row">+ Add flight</button>
+              </div>
+
+              <div class="sim-grand-total-row">
+                <span class="sim-grand-label">Simulated tier points</span>
+                <span class="sim-grand-val" id="sim-grand-total">0</span>
+              </div>
+            </div>
+            ` : ''}
           </section>
         `).join('')}
       </div>
@@ -115,6 +167,7 @@ export function initStatus() {
   });
 
   if (store.ready) render();
+  initFinnairSim();
 }
 
 // ============================================================
@@ -388,6 +441,288 @@ function escapeHtml(s) {
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function fmt(n) { return Number(n).toLocaleString(); }
 function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
+
+// ============================================================
+// Finnair Tier Point Simulator
+// ============================================================
+
+// Oneworld airline IATA codes and their Finnair tier point multipliers.
+// Source: attached screenshot. All others default to 100%.
+const AY_AIRLINES = [
+  { code: 'AS', name: 'Alaska Airlines',    mult: 1.00 },
+  { code: 'HA', name: 'Hawaiian Airlines',  mult: 1.00 },
+  { code: 'AA', name: 'American Airlines',  mult: 1.25 },
+  { code: 'BA', name: 'British Airways',    mult: 1.15 },
+  { code: 'CX', name: 'Cathay Pacific',     mult: 1.00 },
+  { code: 'FJ', name: 'Fiji Airways',       mult: 1.00 },
+  { code: 'IB', name: 'Iberia',             mult: 1.25 },
+  { code: 'JL', name: 'Japan Airlines',     mult: 1.00 },
+  { code: 'MH', name: 'Malaysia Airlines',  mult: 1.00 },
+  { code: 'WY', name: 'Oman Air',           mult: 1.00 },
+  { code: 'QF', name: 'Qantas',             mult: 1.00 },
+  { code: 'QR', name: 'Qatar Airways',      mult: 1.00 },
+  { code: 'AT', name: 'Royal Air Maroc',    mult: 1.00 },
+  { code: 'RJ', name: 'Royal Jordanian',    mult: 1.00 },
+  { code: 'UL', name: 'SriLankan Airlines', mult: 1.00 },
+  { code: 'AY', name: 'Finnair',            mult: 1.00 },
+];
+
+// Booking class multipliers — 100% default for now; editable later
+const CLASS_MULTIPLIERS = {
+  'A': 1.50, 'F': 1.50,                         // First
+  'J': 1.25, 'C': 1.25, 'D': 1.25, 'I': 1.25,  // Business
+  'W': 1.10, 'E': 1.10,                          // Premium Economy
+  'Y': 1.00, 'B': 1.00, 'H': 1.00, 'K': 1.00, 'M': 1.00,
+  'L': 1.00, 'V': 1.00, 'S': 1.00, 'N': 1.00, 'Q': 1.00,
+  'T': 1.00, 'G': 1.00, 'X': 1.00, 'O': 1.00,  // Economy
+};
+
+const SIM_TARGET = 57500;
+let simRows = [];   // [{ id, airline, dep, arr, class, times }]
+let simCounter = 0;
+
+function initFinnairSim() {
+  const card = document.getElementById('ay-sim-card');
+  if (!card) return;
+
+  // Render the multiplier reference grid
+  renderMultGrid();
+
+  // Wire "Add flight" button
+  document.getElementById('sim-add-row').addEventListener('click', () => {
+    addSimRow();
+  });
+
+  // Seed with one empty row
+  addSimRow();
+
+  // Update current balance whenever data changes
+  onChange(evt => {
+    if (!evt) return;
+    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'program:changed') {
+      updateSimSummary();
+    }
+  });
+  if (store.ready) updateSimSummary();
+}
+
+function renderMultGrid() {
+  const grid = document.getElementById('sim-mult-grid');
+  if (!grid) return;
+  grid.innerHTML = AY_AIRLINES.map(a => {
+    const logoHtml = `<img class="sim-mult-logo" src="assets/logos/${a.code.toLowerCase()}.png" alt="${a.code}"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+      <span class="sim-mult-chip" style="display:none">${escapeHtml(a.code)}</span>`;
+    const multLabel = a.mult === 1 ? '100%' : `${Math.round(a.mult * 100)}%`;
+    const highlight = a.mult > 1 ? ' sim-mult-item--hi' : '';
+    return `
+      <div class="sim-mult-item${highlight}">
+        <div class="sim-mult-logo-wrap">${logoHtml}</div>
+        <span class="sim-mult-code">${escapeHtml(a.code)}</span>
+        <span class="sim-mult-pct">${multLabel}</span>
+      </div>`;
+  }).join('');
+}
+
+function addSimRow(defaults = {}) {
+  const id = ++simCounter;
+  simRows.push({ id, airline: defaults.airline || 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
+  renderSimRows();
+}
+
+function removeSimRow(id) {
+  simRows = simRows.filter(r => r.id !== id);
+  if (simRows.length === 0) addSimRow();
+  else renderSimRows();
+}
+
+function renderSimRows() {
+  const container = document.getElementById('sim-rows');
+  if (!container) return;
+
+  container.innerHTML = simRows.map(row => {
+    const airlineOptions = AY_AIRLINES.map(a =>
+      `<option value="${a.code}" ${a.code === row.airline ? 'selected' : ''}>${a.code} – ${a.name}</option>`
+    ).join('');
+
+    return `
+      <div class="sim-row" data-id="${row.id}">
+        <div class="sim-col-airline">
+          <div class="sim-airline-select-wrap">
+            <img class="sim-airline-thumb" src="assets/logos/${row.airline.toLowerCase()}.png" alt=""
+              onerror="this.style.display='none'" data-sim-logo="${row.id}">
+            <select class="sim-select" data-field="airline" data-id="${row.id}">
+              ${airlineOptions}
+            </select>
+          </div>
+        </div>
+        <div class="sim-col-dep">
+          <input class="sim-input sim-iata" type="text" maxlength="3" placeholder="DEP"
+            value="${escapeHtml(row.dep)}" data-field="dep" data-id="${row.id}">
+        </div>
+        <div class="sim-col-arr">
+          <input class="sim-input sim-iata" type="text" maxlength="3" placeholder="ARR"
+            value="${escapeHtml(row.arr)}" data-field="arr" data-id="${row.id}">
+        </div>
+        <div class="sim-col-class">
+          <input class="sim-input sim-class" type="text" maxlength="1" placeholder="Y"
+            value="${escapeHtml(row.cls)}" data-field="cls" data-id="${row.id}">
+        </div>
+        <div class="sim-col-tp">
+          <span class="sim-tp-result" id="sim-tp-${row.id}">—</span>
+        </div>
+        <div class="sim-col-times">
+          <input class="sim-input sim-times" type="number" min="1" step="1"
+            value="${row.times}" data-field="times" data-id="${row.id}">
+        </div>
+        <div class="sim-col-total">
+          <span class="sim-tp-total" id="sim-total-${row.id}">—</span>
+        </div>
+        <div class="sim-col-del">
+          <button class="sim-del-btn" data-del="${row.id}" title="Remove">×</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Wire events
+  container.querySelectorAll('[data-field]').forEach(el => {
+    const event = (el.tagName === 'SELECT' || el.type === 'number') ? 'change' : 'input';
+    el.addEventListener(event, handleSimInput);
+    if (el.tagName !== 'SELECT') el.addEventListener('blur', handleSimInput);
+  });
+  container.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', () => removeSimRow(Number(btn.dataset.del)));
+  });
+
+  recalcSim();
+}
+
+function handleSimInput(e) {
+  const el = e.target;
+  const id = Number(el.dataset.id);
+  const field = el.dataset.field;
+  const row = simRows.find(r => r.id === id);
+  if (!row) return;
+
+  if (field === 'airline') {
+    row.airline = el.value;
+    // Update logo thumbnail
+    const logo = document.querySelector(`[data-sim-logo="${id}"]`);
+    if (logo) {
+      logo.style.display = '';
+      logo.src = `assets/logos/${el.value.toLowerCase()}.png`;
+    }
+  } else if (field === 'dep') {
+    row.dep = el.value.trim().toUpperCase();
+    el.value = row.dep;
+  } else if (field === 'arr') {
+    row.arr = el.value.trim().toUpperCase();
+    el.value = row.arr;
+  } else if (field === 'cls') {
+    row.cls = el.value.trim().toUpperCase();
+    el.value = row.cls;
+  } else if (field === 'times') {
+    row.times = Math.max(1, parseInt(el.value, 10) || 1);
+    el.value = row.times;
+  }
+
+  recalcSim();
+}
+
+function recalcSim() {
+  let grand = 0;
+
+  for (const row of simRows) {
+    const $tp = document.getElementById(`sim-tp-${row.id}`);
+    const $tot = document.getElementById(`sim-total-${row.id}`);
+
+    if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) {
+      if ($tp) $tp.textContent = '—';
+      if ($tot) $tot.textContent = '—';
+      continue;
+    }
+
+    const a = store.airports.get(row.dep);
+    const b = store.airports.get(row.arr);
+    if (!a || !b) {
+      if ($tp) { $tp.textContent = '?'; $tp.title = 'Airport not found'; }
+      if ($tot) $tot.textContent = '—';
+      continue;
+    }
+
+    const distMi = haversineKm(a.lat, a.lon, b.lat, b.lon) * 0.621371;
+    const classMult = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
+    const airlineData = AY_AIRLINES.find(x => x.code === row.airline);
+    const airlineMult = airlineData ? airlineData.mult : 1.00;
+
+    const tpPerTrip = Math.round(distMi * classMult * airlineMult);
+    const tpTotal = tpPerTrip * row.times;
+    grand += tpTotal;
+
+    if ($tp) $tp.textContent = fmt(tpPerTrip);
+    if ($tot) $tot.textContent = fmt(tpTotal);
+  }
+
+  const $grand = document.getElementById('sim-grand-total');
+  if ($grand) $grand.textContent = fmt(grand);
+
+  updateSimSummary(grand);
+}
+
+function updateSimSummary(simulatedExtra) {
+  // Current balance from the store
+  const prog = PROGRAMS.find(p => p.id === 'ay');
+  if (!prog) return;
+
+  const now = new Date();
+  const window = computeWindow(prog, now);
+  const b = computeBalance(prog, window);
+  const current = b.total;
+
+  // If called without simulatedExtra, recompute from rows
+  if (simulatedExtra === undefined) {
+    let grand = 0;
+    for (const row of simRows) {
+      if (!row.dep || !row.arr || row.dep.length < 3 || row.arr.length < 3) continue;
+      const a = store.airports.get(row.dep);
+      const bb = store.airports.get(row.arr);
+      if (!a || !bb) continue;
+      const distMi = haversineKm(a.lat, a.lon, bb.lat, bb.lon) * 0.621371;
+      const classMult = CLASS_MULTIPLIERS[row.cls] ?? 1.00;
+      const airlineData = AY_AIRLINES.find(x => x.code === row.airline);
+      const airlineMult = airlineData ? airlineData.mult : 1.00;
+      grand += Math.round(distMi * classMult * airlineMult) * row.times;
+    }
+    simulatedExtra = grand;
+  }
+
+  const projected = current + simulatedExtra;
+  const needed = Math.max(0, SIM_TARGET - projected);
+
+  const $cur = document.getElementById('sim-current');
+  const $proj = document.getElementById('sim-projected');
+  const $need = document.getElementById('sim-needed');
+
+  if ($cur) $cur.textContent = fmt(current);
+  if ($proj) {
+    $proj.textContent = fmt(projected);
+    $proj.dataset.tone = projected >= SIM_TARGET ? 'good' : (projected >= SIM_TARGET * 0.75 ? 'warn' : 'bad');
+  }
+  if ($need) {
+    $need.textContent = needed > 0 ? fmt(needed) : '✓ Done';
+    $need.dataset.tone = needed === 0 ? 'good' : '';
+  }
+}
+
+// Haversine (also defined in data.js but we need it here without importing to avoid issues)
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
 
 // ============================================================
 // Adjustment modal — manual correction + qualification start date
