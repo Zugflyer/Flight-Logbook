@@ -2599,8 +2599,8 @@ button.ghost.small {
 .sim-projected[data-tone="bad"]  { color: var(--fg-1); }
 .sim-needed[data-tone="good"] { color: #1d6b1d; }
 
-/* Multiplier reference — dropdown */
-.sim-multipliers {
+/* ── Earning rates section ─────────────────────────────────────────────── */
+.sim-earnings-section {
   margin-bottom: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid var(--accent-line);
@@ -2611,175 +2611,150 @@ button.ghost.small {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--fg-2);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
-.sim-mult-dropdown-wrap {
-  position: relative;
+
+/* Logo strip — all airline logos as clickable buttons */
+.sim-airline-logo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
 }
-.sim-mult-trigger {
+.sim-logo-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 10px;
+  justify-content: center;
+  width: 52px;
+  height: 34px;
   background: var(--bg-1);
-  border: 1px solid var(--accent-line);
+  border: 1.5px solid var(--accent-line);
   border-radius: 7px;
   cursor: pointer;
-  font-size: 12px;
-  color: var(--fg-1);
-  transition: border-color 0.15s;
+  padding: 4px 6px;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
-.sim-mult-trigger:hover,
-.sim-mult-trigger--open {
+.sim-logo-btn:hover {
   border-color: var(--prog-accent);
+  background: var(--bg-0);
 }
-.sim-mult-trigger-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+.sim-logo-btn--sel {
+  border-color: var(--prog-accent);
+  background: var(--prog-accent-soft);
+  box-shadow: 0 0 0 2px var(--prog-accent-soft);
 }
-.sim-mult-trigger-logos {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  flex-shrink: 0;
-}
-.sim-trigger-mini-logo {
-  height: 14px;
-  width: auto;
-  max-width: 28px;
+.sim-logo-btn-img {
+  max-width: 42px;
+  max-height: 26px;
   object-fit: contain;
   display: block;
 }
-.sim-mult-trigger-text {
-  font-size: 12px;
-  color: var(--fg-2);
-}
-.sim-mult-chevron {
-  font-size: 14px;
-  color: var(--fg-2);
-  transition: transform 0.2s;
-  flex-shrink: 0;
-}
-.sim-mult-trigger--open .sim-mult-chevron {
-  transform: rotate(180deg);
-}
-.sim-mult-panel {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--bg-0);
+
+/* Earnings panel — shown below the strip for selected airline */
+.sim-airline-panel {
+  background: var(--bg-1);
   border: 1px solid var(--accent-line);
   border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
-  z-index: 200;
   overflow: hidden;
-  max-height: 320px;
-  overflow-y: auto;
 }
-.sim-mult-row {
-  display: grid;
-  grid-template-columns: 36px 28px 1fr 36px;
+.sim-panel-header {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--bg-2);
-  transition: background 0.1s;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--accent-line);
+  background: var(--bg-0);
 }
-.sim-mult-row:last-child { border-bottom: none; }
-.sim-mult-row:hover { background: var(--bg-1); }
-.sim-mult-row--hi { background: var(--prog-accent-soft); }
-.sim-mult-row--hi:hover { background: var(--prog-accent-soft); filter: brightness(0.97); }
-.sim-mult-row-logo-wrap {
-  width: 36px;
-  height: 20px;
+.sim-panel-logo-wrap {
+  width: 56px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
-.sim-mult-row-logo {
-  max-width: 36px;
-  max-height: 20px;
+.sim-panel-logo {
+  max-width: 56px;
+  max-height: 32px;
   object-fit: contain;
   display: block;
 }
-.sim-mult-row-chip {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--bg-2);
-  color: var(--fg-1);
-  padding: 2px 4px;
-  border-radius: 3px;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  text-align: center;
-}
-.sim-mult-row-code {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--fg-1);
-  font-family: var(--font-mono, monospace);
-}
-.sim-mult-row-name {
-  font-size: 11px;
-  color: var(--fg-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sim-mult-row-pct {
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--fg-2);
-  text-align: right;
-}
-.sim-mult-row--hi .sim-mult-row-pct { color: var(--prog-accent); }
-.sim-mult-row--hi .sim-mult-row-name { color: var(--fg-1); }
-
-/* Simulator table */
-.sim-table-wrap {
+.sim-panel-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-width: 0;
 }
-.sim-table-head {
-  display: grid;
-  grid-template-columns: 150px 52px 52px 44px 64px 44px 64px 28px;
-  gap: 4px;
-  padding: 0 2px 6px;
+.sim-panel-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-1);
+}
+.sim-panel-tier {
+  font-size: 11px;
+  color: var(--fg-2);
+}
+.sim-panel-tier.sim-tier-hi {
+  color: var(--prog-accent);
+  font-weight: 600;
+}
+.sim-earn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.sim-earn-table th {
+  padding: 6px 12px;
+  text-align: left;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   color: var(--fg-2);
   border-bottom: 1px solid var(--accent-line);
+  background: var(--bg-1);
 }
-.sim-row {
-  display: grid;
-  grid-template-columns: 150px 52px 52px 44px 64px 44px 64px 28px;
-  gap: 4px;
+.sim-earn-table td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--bg-2);
+  color: var(--fg-1);
+}
+.sim-earn-table tr:last-child td { border-bottom: none; }
+.sim-earn-table tr:hover td { background: var(--bg-2); }
+.sim-earn-codes {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--fg-2);
+  letter-spacing: 0.03em;
+}
+.sim-earn-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--prog-accent);
+  text-align: right;
+}
+
+/* Shared logo chip fallback */
+.sim-logo-chip {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  border-radius: 3px;
+  padding: 1px 4px;
+  min-width: 24px;
+  height: 16px;
 }
-.sim-col-airline,
-.sim-col-dep,
-.sim-col-arr,
-.sim-col-class,
-.sim-col-tp,
-.sim-col-times,
-.sim-col-total,
-.sim-col-del {
-  display: flex;
-  align-items: center;
+.sim-logo-chip--lg {
+  font-size: 11px;
+  height: 22px;
+  min-width: 32px;
 }
-.sim-col-tp, .sim-col-total { justify-content: flex-end; }
-.sim-col-del { justify-content: center; }
+
 
 /* ---- Custom airline picker in sim rows ---- */
 .sim-al-picker {
