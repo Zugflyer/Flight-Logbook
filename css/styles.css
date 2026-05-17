@@ -3188,17 +3188,17 @@ button.ghost.small {
 .sim-add-forecast-btn {
   width: 100%;
   margin-top: 4px;
-  padding: 8px;
-  background: none;
-  border: 1.5px dashed var(--prog-accent);
+  padding: 9px;
+  background: var(--prog-accent);
+  border: none;
   border-radius: 7px;
-  color: var(--prog-accent);
+  color: #fff;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: filter 0.15s;
   text-align: center;
 }
 .sim-add-forecast-btn:hover {
-  background: var(--prog-accent-soft);
+  filter: brightness(1.1);
 }
