@@ -139,13 +139,8 @@ export function initStatus() {
               <div class="sim-flights-section">
                 <div class="sim-sect-label">Flight simulator</div>
                 <div id="sim-rows"></div>
-                <button class="sim-add-btn" id="sim-add-row">+ Add flight</button>
               </div>
 
-              <div class="sim-grand-total-row">
-                <span class="sim-grand-label">Total simulated tier points</span>
-                <span class="sim-grand-val" id="sim-grand-total">0</span>
-              </div>
             </div>
             ` : ''}
           </section>
