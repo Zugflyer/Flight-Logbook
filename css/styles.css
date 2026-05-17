@@ -3109,3 +3109,96 @@ button.ghost.small {
   padding-top: 10px;
 }
 .sim-times-lg { max-width: 100px; }
+
+/* ── Forecast table ─────────────────────────────────────────────────────── */
+.sim-forecast-wrap {
+  margin-bottom: 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sim-forecast-head {
+  display: grid;
+  grid-template-columns: 44px 64px 30px 64px 40px 64px 24px;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--accent-line);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+  align-items: center;
+}
+.sim-forecast-row {
+  display: grid;
+  grid-template-columns: 44px 64px 30px 64px 40px 64px 24px;
+  gap: 4px;
+  padding: 5px 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--bg-2);
+  background: var(--bg-0);
+}
+.sim-forecast-row:last-child { border-bottom: none; }
+.sim-forecast-row:hover { background: var(--bg-1); }
+.sfc-logo {
+  max-width: 38px;
+  max-height: 20px;
+  object-fit: contain;
+  display: block;
+}
+.sfc-col-route {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--fg-1);
+  letter-spacing: 0.04em;
+}
+.sfc-input {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 4px;
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  background: var(--bg-0);
+  color: var(--fg-1);
+}
+.sfc-input:focus {
+  outline: none;
+  border-color: var(--prog-accent);
+}
+.sfc-val {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+  text-align: right;
+}
+.sfc-val--total {
+  color: var(--prog-accent);
+  font-weight: 700;
+}
+
+/* Add to forecast button */
+.sim-add-forecast-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  background: none;
+  border: 1.5px dashed var(--prog-accent);
+  border-radius: 7px;
+  color: var(--prog-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: center;
+}
+.sim-add-forecast-btn:hover {
+  background: var(--prog-accent-soft);
+}
