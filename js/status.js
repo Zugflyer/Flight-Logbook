@@ -119,9 +119,18 @@ export function initStatus() {
                 </div>
               </div>
 
-              <div class="sim-multipliers" id="sim-multipliers">
+              <div class="sim-multipliers">
                 <div class="sim-mult-label">Earning multipliers</div>
-                <div class="sim-mult-grid" id="sim-mult-grid"></div>
+                <div class="sim-mult-dropdown-wrap" id="sim-mult-dropdown-wrap">
+                  <button class="sim-mult-trigger" id="sim-mult-trigger" type="button">
+                    <span class="sim-mult-trigger-inner">
+                      <span class="sim-mult-trigger-logos" id="sim-mult-trigger-logos"></span>
+                      <span class="sim-mult-trigger-text">View by airline</span>
+                    </span>
+                    <span class="sim-mult-chevron">▾</span>
+                  </button>
+                  <div class="sim-mult-panel" id="sim-mult-panel" hidden></div>
+                </div>
               </div>
 
               <div class="sim-table-wrap">
@@ -507,21 +516,50 @@ function initFinnairSim() {
 }
 
 function renderMultGrid() {
-  const grid = document.getElementById('sim-mult-grid');
-  if (!grid) return;
-  grid.innerHTML = AY_AIRLINES.map(a => {
-    const logoHtml = `<img class="sim-mult-logo" src="assets/logos/${a.code.toLowerCase()}.png" alt="${a.code}"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
-      <span class="sim-mult-chip" style="display:none">${escapeHtml(a.code)}</span>`;
+  const panel = document.getElementById('sim-mult-panel');
+  const triggerLogos = document.getElementById('sim-mult-trigger-logos');
+  const trigger = document.getElementById('sim-mult-trigger');
+  if (!panel || !trigger) return;
+
+  // Build the panel rows — one per airline
+  panel.innerHTML = AY_AIRLINES.map(a => {
     const multLabel = a.mult === 1 ? '100%' : `${Math.round(a.mult * 100)}%`;
-    const highlight = a.mult > 1 ? ' sim-mult-item--hi' : '';
+    const hiClass = a.mult > 1 ? ' sim-mult-row--hi' : '';
     return `
-      <div class="sim-mult-item${highlight}">
-        <div class="sim-mult-logo-wrap">${logoHtml}</div>
-        <span class="sim-mult-code">${escapeHtml(a.code)}</span>
-        <span class="sim-mult-pct">${multLabel}</span>
+      <div class="sim-mult-row${hiClass}">
+        <div class="sim-mult-row-logo-wrap">
+          <img class="sim-mult-row-logo" src="assets/logos/${a.code.toLowerCase()}.png" alt=""
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <span class="sim-mult-row-chip" style="display:none">${escapeHtml(a.code)}</span>
+        </div>
+        <span class="sim-mult-row-code">${escapeHtml(a.code)}</span>
+        <span class="sim-mult-row-name">${escapeHtml(a.name)}</span>
+        <span class="sim-mult-row-pct">${multLabel}</span>
       </div>`;
   }).join('');
+
+  // Show a few mini logos on the trigger button as a preview
+  if (triggerLogos) {
+    triggerLogos.innerHTML = AY_AIRLINES.slice(0, 5).map(a =>
+      `<img class="sim-trigger-mini-logo" src="assets/logos/${a.code.toLowerCase()}.png" alt="${a.code}"
+        onerror="this.style.display='none'">`
+    ).join('');
+  }
+
+  // Toggle open/close
+  trigger.addEventListener('click', () => {
+    const isOpen = !panel.hidden;
+    panel.hidden = isOpen;
+    trigger.classList.toggle('sim-mult-trigger--open', !isOpen);
+  });
+
+  // Close when clicking outside
+  document.addEventListener('click', e => {
+    if (!trigger.contains(e.target) && !panel.contains(e.target)) {
+      panel.hidden = true;
+      trigger.classList.remove('sim-mult-trigger--open');
+    }
+  });
 }
 
 function addSimRow(defaults = {}) {
