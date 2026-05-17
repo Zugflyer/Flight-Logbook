@@ -2599,7 +2599,7 @@ button.ghost.small {
 .sim-projected[data-tone="bad"]  { color: var(--fg-1); }
 .sim-needed[data-tone="good"] { color: #1d6b1d; }
 
-/* Multiplier reference grid */
+/* Multiplier reference — dropdown */
 .sim-multipliers {
   margin-bottom: 16px;
   padding-bottom: 14px;
@@ -2611,62 +2611,137 @@ button.ghost.small {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--fg-2);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
-.sim-mult-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.sim-mult-dropdown-wrap {
+  position: relative;
 }
-.sim-mult-item {
+.sim-mult-trigger {
   display: flex;
   align-items: center;
-  gap: 5px;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
   background: var(--bg-1);
   border: 1px solid var(--accent-line);
-  border-radius: 6px;
-  padding: 4px 7px 4px 5px;
-  font-size: 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg-1);
+  transition: border-color 0.15s;
 }
-.sim-mult-item--hi {
-  background: var(--prog-accent-soft);
+.sim-mult-trigger:hover,
+.sim-mult-trigger--open {
   border-color: var(--prog-accent);
 }
-.sim-mult-logo-wrap {
-  width: 22px;
-  height: 16px;
+.sim-mult-trigger-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sim-mult-trigger-logos {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   flex-shrink: 0;
 }
-.sim-mult-logo {
-  max-width: 22px;
-  max-height: 16px;
+.sim-trigger-mini-logo {
+  height: 14px;
+  width: auto;
+  max-width: 28px;
   object-fit: contain;
   display: block;
 }
-.sim-mult-chip {
-  font-size: 10px;
-  font-weight: 600;
-  background: var(--bg-2);
-  padding: 1px 3px;
-  border-radius: 3px;
-}
-.sim-mult-code {
-  font-weight: 600;
-  color: var(--fg-1);
-  font-size: 11px;
-}
-.sim-mult-pct {
+.sim-mult-trigger-text {
+  font-size: 12px;
   color: var(--fg-2);
+}
+.sim-mult-chevron {
+  font-size: 14px;
+  color: var(--fg-2);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.sim-mult-trigger--open .sim-mult-chevron {
+  transform: rotate(180deg);
+}
+.sim-mult-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+  z-index: 200;
+  overflow: hidden;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.sim-mult-row {
+  display: grid;
+  grid-template-columns: 36px 28px 1fr 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--bg-2);
+  transition: background 0.1s;
+}
+.sim-mult-row:last-child { border-bottom: none; }
+.sim-mult-row:hover { background: var(--bg-1); }
+.sim-mult-row--hi { background: var(--prog-accent-soft); }
+.sim-mult-row--hi:hover { background: var(--prog-accent-soft); filter: brightness(0.97); }
+.sim-mult-row-logo-wrap {
+  width: 36px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sim-mult-row-logo {
+  max-width: 36px;
+  max-height: 20px;
+  object-fit: contain;
+  display: block;
+}
+.sim-mult-row-chip {
   font-size: 10px;
-  font-variant-numeric: tabular-nums;
-}
-.sim-mult-item--hi .sim-mult-pct {
-  color: var(--prog-accent);
   font-weight: 700;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  text-align: center;
 }
+.sim-mult-row-code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fg-1);
+  font-family: var(--font-mono, monospace);
+}
+.sim-mult-row-name {
+  font-size: 11px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sim-mult-row-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+  text-align: right;
+}
+.sim-mult-row--hi .sim-mult-row-pct { color: var(--prog-accent); }
+.sim-mult-row--hi .sim-mult-row-name { color: var(--fg-1); }
 
 /* Simulator table */
 .sim-table-wrap {
