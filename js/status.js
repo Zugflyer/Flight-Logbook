@@ -832,12 +832,6 @@ function initFinnairSim() {
     recalcSim();
   });
 
-  // Add-row button
-  document.getElementById('sim-add-row').addEventListener('click', () => {
-    simRows.push({ id: ++simCounter, airline: 'BA', dep: '', arr: '', cls: 'Y', times: 1 });
-    renderRows();
-  });
-
   // Re-render when logos arrive or flight data loads
   window.addEventListener('flightlog:logo-changed', fullRender);
   onChange(evt => {
@@ -951,8 +945,7 @@ function recalcSim() {
     if ($tp)   $tp.textContent   = tpPerTrip.toLocaleString();
     if ($tot)  $tot.textContent  = tpTotal.toLocaleString();
   }
-  const $g = document.getElementById('sim-grand-total');
-  if ($g) $g.textContent = grand.toLocaleString();
+  // grand total element removed
   updateSimSummary(grand);
 }
 
