@@ -2563,3 +2563,554 @@ button.ghost.small {
   font-size: 13px;
   color: var(--fg-0);
 }
+
+/* ============================================================================
+ * Finnair Tier Point Simulator — complete CSS
+ * ============================================================================ */
+
+/* ── Summary row ─────────────────────────────────────────────────────────── */
+.sim-card { margin-top: 0; }
+
+.sim-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--accent-line);
+}
+.sim-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sim-summary-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+}
+.sim-summary-val {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-1);
+}
+.sim-current { color: var(--prog-accent); }
+.sim-projected[data-tone="good"] { color: #1d6b1d; }
+.sim-projected[data-tone="warn"] { color: #8a5a00; }
+.sim-projected[data-tone="bad"]  { color: var(--fg-1); }
+.sim-needed[data-tone="good"]    { color: #1d6b1d; }
+
+/* ── Forecast table ──────────────────────────────────────────────────────── */
+.sim-forecast-wrap {
+  margin-bottom: 12px;
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sim-forecast-head {
+  display: grid;
+  grid-template-columns: 44px 64px 30px 64px 40px 64px 24px;
+  gap: 4px;
+  padding: 6px 10px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--accent-line);
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+  align-items: center;
+}
+.sim-forecast-row {
+  display: grid;
+  grid-template-columns: 44px 64px 30px 64px 40px 64px 24px;
+  gap: 4px;
+  padding: 5px 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--bg-2);
+  background: var(--bg-0);
+}
+.sim-forecast-row:last-child { border-bottom: none; }
+.sim-forecast-row:hover { background: var(--bg-1); }
+.sfc-logo {
+  max-width: 38px;
+  max-height: 20px;
+  object-fit: contain;
+  display: block;
+}
+.sfc-col-route {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: var(--fg-1);
+  letter-spacing: 0.04em;
+}
+.sfc-input {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  text-align: center;
+  padding: 3px 4px;
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  background: var(--bg-0);
+  color: var(--fg-1);
+}
+.sfc-input:focus { outline: none; border-color: var(--prog-accent); }
+.sfc-val {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+  text-align: right;
+}
+.sfc-val--total { color: var(--prog-accent); font-weight: 700; }
+
+/* ── Earning rates section ───────────────────────────────────────────────── */
+.sim-earnings-section {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--accent-line);
+}
+.sim-mult-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+  margin-bottom: 8px;
+}
+
+/* Logo strip */
+.sim-airline-logo-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.sim-logo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 34px;
+  background: var(--bg-1);
+  border: 1.5px solid var(--accent-line);
+  border-radius: 7px;
+  cursor: pointer;
+  padding: 4px 6px;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+.sim-logo-btn:hover { border-color: var(--prog-accent); background: var(--bg-0); }
+.sim-logo-btn--sel {
+  border-color: var(--prog-accent);
+  background: var(--prog-accent-soft);
+  box-shadow: 0 0 0 2px var(--prog-accent-soft);
+}
+.sim-logo-btn-img {
+  max-width: 42px;
+  max-height: 26px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Earnings panel */
+.sim-airline-panel {
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sim-panel-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 52px 14px 14px;
+  border-bottom: 1px solid var(--accent-line);
+  background: var(--bg-0);
+  min-height: 64px;
+}
+.sim-panel-logo-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sim-panel-logo {
+  max-width: 100%;
+  max-height: 44px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+.sim-panel-tier-badge {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--prog-accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.1;
+  flex-shrink: 0;
+}
+.sim-panel-tier-badge--hi { background: #1a7f3c; }
+
+.sim-earn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.sim-earn-table th {
+  padding: 6px 12px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-2);
+  border-bottom: 1px solid var(--accent-line);
+  background: var(--bg-1);
+}
+.sim-earn-table td {
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--bg-2);
+  color: var(--fg-1);
+}
+.sim-earn-table tr:last-child td { border-bottom: none; }
+.sim-earn-table tr:hover td { background: var(--bg-2); }
+.sim-earn-codes {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--fg-2);
+  letter-spacing: 0.03em;
+}
+.sim-earn-pct {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--prog-accent);
+  text-align: right;
+}
+
+/* ── Shared chip fallback (when no logo) ────────────────────────────────── */
+.sim-logo-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--fg-1);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  border-radius: 3px;
+  padding: 1px 4px;
+  min-width: 24px;
+  height: 16px;
+}
+.sim-logo-chip--lg { font-size: 11px; height: 22px; min-width: 32px; }
+
+/* ── Flight simulator — vertical cards ──────────────────────────────────── */
+.sim-flights-section { margin-top: 4px; }
+.sim-sect-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+  margin-bottom: 8px;
+}
+#sim-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim-flight-card {
+  position: relative;
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 10px;
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim-del-btn--card {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--fg-3);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.sim-del-btn--card:hover { background: #fee2e2; color: #c0392b; }
+.sim-flight-logo-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 32px 0;
+}
+.sim-flight-logo {
+  max-width: 100%;
+  max-height: 38px;
+  object-fit: contain;
+  display: block;
+}
+.sim-flight-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-field-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-2);
+}
+.sim-class-lg,
+.sim-iata-lg,
+.sim-times-lg {
+  width: 100%;
+  font-size: 22px;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 8px 12px;
+  border: 1.5px solid var(--accent-line);
+  border-radius: 7px;
+  background: var(--bg-0);
+  color: var(--fg-1);
+  text-align: center;
+  box-sizing: border-box;
+}
+.sim-class-lg { max-width: 80px; }
+.sim-class-lg:focus,
+.sim-iata-lg:focus,
+.sim-times-lg:focus {
+  outline: none;
+  border-color: var(--prog-accent);
+  box-shadow: 0 0 0 3px var(--prog-accent-soft);
+}
+.sim-dist-val {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+  padding: 2px 0;
+}
+.sim-flight-result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--prog-accent-soft);
+  border: 1.5px solid var(--prog-accent);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.sim-flight-result--total {
+  background: var(--bg-0);
+  border-color: var(--accent-line);
+}
+.sim-result-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--fg-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sim-result-val {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--prog-accent);
+}
+.sim-result-val--total { font-size: 20px; color: var(--fg-1); }
+.sim-flight-times {
+  border-top: 1px solid var(--accent-line);
+  padding-top: 10px;
+}
+.sim-times-lg { max-width: 100px; }
+
+/* Add to forecast button */
+.sim-add-forecast-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px;
+  background: var(--prog-accent);
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s;
+  text-align: center;
+}
+.sim-add-forecast-btn:hover { filter: brightness(1.1); }
+
+/* ── Custom airline picker in sim rows ───────────────────────────────────── */
+.sim-al-picker { position: relative; width: 100%; }
+.sim-al-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  height: 28px;
+  padding: 0 6px;
+  background: var(--bg-0);
+  border: 1px solid var(--accent-line);
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--fg-1);
+  transition: border-color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sim-al-btn:hover { border-color: var(--prog-accent); }
+.sim-al-btn-logo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  width: 32px;
+}
+.sim-al-logo {
+  max-width: 32px;
+  max-height: 18px;
+  object-fit: contain;
+  display: block;
+}
+.sim-al-btn-code {
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  flex: 1;
+  min-width: 0;
+}
+.sim-al-chevron { font-size: 11px; color: var(--fg-3); flex-shrink: 0; }
+.sim-al-dropdown {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  min-width: 200px;
+  background: var(--bg-0);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.14);
+  z-index: 300;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.sim-al-option {
+  display: grid;
+  grid-template-columns: 38px 28px 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--bg-2);
+  transition: background 0.1s;
+}
+.sim-al-option:last-child { border-bottom: none; }
+.sim-al-option:hover { background: var(--bg-1); }
+.sim-al-option--sel { background: var(--prog-accent-soft); }
+.sim-al-opt-logo {
+  width: 38px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sim-al-opt-logo-img {
+  max-width: 38px;
+  max-height: 20px;
+  object-fit: contain;
+  display: block;
+}
+.sim-al-opt-code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fg-1);
+  font-family: var(--font-mono, monospace);
+}
+.sim-al-opt-name {
+  font-size: 11px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Mult reference rows ─────────────────────────────────────────────────── */
+.sim-mult-row {
+  display: grid;
+  grid-template-columns: 36px 28px 1fr 36px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--bg-2);
+  transition: background 0.1s;
+}
+.sim-mult-row:last-child { border-bottom: none; }
+.sim-mult-row:hover { background: var(--bg-1); }
+.sim-mult-row--hi { background: var(--prog-accent-soft); }
+.sim-mult-row-logo-wrap {
+  width: 36px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sim-mult-row-logo {
+  max-width: 36px;
+  max-height: 20px;
+  object-fit: contain;
+  display: block;
+}
+.sim-mult-row-code {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--fg-1);
+  font-family: var(--font-mono, monospace);
+}
+.sim-mult-row-name {
+  font-size: 11px;
+  color: var(--fg-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sim-mult-row-pct {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-2);
+  text-align: right;
+}
+.sim-mult-row--hi .sim-mult-row-pct { color: var(--prog-accent); }
+
