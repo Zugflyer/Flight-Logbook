@@ -653,15 +653,15 @@ button.ghost.small { padding: 3px 10px; font-size: 12px; height: 28px; }
   min-width: 0;
   display: flex;
   flex-direction: column;
-  overflow-x: auto;
+  overflow-x: scroll;        /* scroll (not auto) = always visible on Mac */
   overflow-y: hidden;        /* vertical scroll is on log-tbody-scroll */
   scrollbar-width: thin;
-  scrollbar-color: var(--accent-line) var(--bg-2);
+  scrollbar-color: var(--fg-3) var(--bg-2);
 }
-.log-hscroll::-webkit-scrollbar        { height: 8px; }
-.log-hscroll::-webkit-scrollbar-track  { background: var(--bg-2); }
-.log-hscroll::-webkit-scrollbar-thumb  { background: var(--accent-line); border-radius: 4px; }
-.log-hscroll::-webkit-scrollbar-thumb:hover { background: var(--fg-3); }
+.log-hscroll::-webkit-scrollbar        { height: 10px; }
+.log-hscroll::-webkit-scrollbar-track  { background: var(--bg-2); border-radius: 5px; }
+.log-hscroll::-webkit-scrollbar-thumb  { background: var(--fg-3); border-radius: 5px; }
+.log-hscroll::-webkit-scrollbar-thumb:hover { background: var(--fg-1); }
 .log-thead, .tr {
   min-width: 700px;          /* ensures horizontal scroll appears on narrow panels */
   display: grid;
