@@ -63,19 +63,21 @@ export function initLog() {
       </div>
 
       <div class="log-table-wrap">
-        <div class="log-thead">
-          <div class="th col-logo" data-sort="airline">Airline <span class="caret"></span></div>
-          <div class="th col-eqp" data-sort="aircraft">EQP <span class="caret"></span></div>
-          <div class="th col-route" data-sort="route">Route <span class="caret"></span></div>
-          <div class="th col-distance" data-sort="distance">Distance <span class="caret"></span></div>
-          <div class="th col-cabin" data-sort="cabin">Cabin <span class="caret"></span></div>
-          <div class="th col-tier" data-sort="tier_miles">Tier <span class="caret"></span></div>
-          <div class="th col-date" data-sort="date">Date <span class="caret"></span></div>
-          <div class="th col-credit"></div>
-        </div>
-        <div class="log-tbody-scroll" id="tbody-scroll">
-          <div class="log-tbody-spacer" id="tbody-spacer"></div>
-          <div class="log-tbody" id="tbody"></div>
+        <div class="log-hscroll">
+          <div class="log-thead">
+            <div class="th col-logo" data-sort="airline">Airline <span class="caret"></span></div>
+            <div class="th col-eqp" data-sort="aircraft">EQP <span class="caret"></span></div>
+            <div class="th col-route" data-sort="route">Route <span class="caret"></span></div>
+            <div class="th col-distance" data-sort="distance">Distance <span class="caret"></span></div>
+            <div class="th col-cabin" data-sort="cabin">Cabin <span class="caret"></span></div>
+            <div class="th col-tier" data-sort="tier_miles">Tier <span class="caret"></span></div>
+            <div class="th col-date" data-sort="date">Date <span class="caret"></span></div>
+            <div class="th col-credit"></div>
+          </div>
+          <div class="log-tbody-scroll" id="tbody-scroll">
+            <div class="log-tbody-spacer" id="tbody-spacer"></div>
+            <div class="log-tbody" id="tbody"></div>
+          </div>
         </div>
       </div>
     </div>
