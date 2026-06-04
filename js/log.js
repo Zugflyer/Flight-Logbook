@@ -78,7 +78,7 @@ export function initLog() {
             <div class="log-tbody-spacer" id="tbody-spacer"></div>
             <div class="log-tbody" id="tbody"></div>
           </div>
-        </div>
+        </div><!-- /.log-hscroll -->
       </div>
     </div>
 
