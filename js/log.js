@@ -155,8 +155,25 @@ function wireFilters() {
     // If the browser slipped something into the filter box while we were away,
     // don't let a phantom filter hide every row.
     if ($search.value !== filters.search) $search.value = filters.search;
-    requestAnimationFrame(() => render(true));
+    // Two frames: the first lets the panel switch to display:grid, the second
+    // runs after layout so clientHeight is real.
+    requestAnimationFrame(() => requestAnimationFrame(() => render(true)));
   });
+
+  // Authoritative fix: watch the scroll container itself. Whenever it goes
+  // from 0px (hidden) to a real height, repaint the virtual list. This does
+  // not depend on tab events firing or on any particular timing.
+  const $scroll = document.getElementById('tbody-scroll');
+  if ($scroll && 'ResizeObserver' in window) {
+    let lastHeight = 0;
+    new ResizeObserver(entries => {
+      const h = entries[0].contentRect.height;
+      if (h > 0 && h !== lastHeight) {
+        lastHeight = h;
+        render(true);
+      }
+    }).observe($scroll);
+  }
 }
 
 function wireSorting() {
@@ -299,7 +316,11 @@ function render(layoutOnly = false) {
   });
 
   const scrollTop = $scroll.scrollTop;
-  const viewport = $scroll.clientHeight;
+  // While the panel is display:none every descendant measures 0px high, which
+  // would make the visible range empty and paint a blank table. Fall back to a
+  // plausible viewport so we always draw rows; the ResizeObserver below
+  // repaints with the real height as soon as the panel is on screen.
+  const viewport = $scroll.clientHeight || Math.max(400, window.innerHeight - 260);
   const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - BUFFER_ROWS);
   const endIdx   = Math.min(rows.length, Math.ceil((scrollTop + viewport) / ROW_HEIGHT) + BUFFER_ROWS);
 
