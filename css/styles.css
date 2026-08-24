@@ -75,15 +75,19 @@ body { display: flex; flex-direction: column; }
    NOT at 50% — so the full-width content below reads as belonging to Flight Log. */
 .header-grid {
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* Active side 80%, inactive 20%. Flipped by the :has() rule at the
+     bottom of this file when the Train tab is selected. */
+  grid-template-columns: 4fr 1fr;
   gap: 0;
   min-height: 78px;
+  transition: grid-template-columns 220ms ease;
 }
 .header-box {
   display: flex;
   align-items: center;
   padding: 12px 24px;
   gap: 24px;
+  min-width: 0;          /* let the narrow side actually shrink */
 }
 .brand-box {
   border-right: 1px solid var(--border);
@@ -1331,7 +1335,9 @@ button.ghost.danger:hover { color: var(--danger); border-color: var(--danger); b
 }
 @media (max-width: 720px) {
   /* Stack the two boxes vertically on phones */
-  .header-grid { grid-template-columns: 1fr; min-height: 0; }
+  .header-grid,
+  .header-grid:has(.loyalty-brand-btn.active) { grid-template-columns: 1fr; }
+  .header-grid { min-height: 0; }
   .brand-box { border-right: none; border-bottom: 1px solid var(--border); }
   /* stacked: let Train Log and the actions spread across the row again */
   .loyalty-box { justify-content: space-between; }
@@ -2912,3 +2918,44 @@ button.ghost.small {
 /* Flight wordmark transitions too, so the swap reads as one motion */
 .brand h1 { transition: color 120ms, -webkit-text-fill-color 120ms; }
 .brand-mark { transition: color 120ms; }
+
+/* ---------- 80 / 20 header split ----------
+   The active app owns 80% of the bar, the inactive one shrinks to 20% and
+   drops to a compact wordmark so it still fits. ---------------------- */
+
+/* Default = a flight tab is active → Train Log is the narrow, compact side */
+.loyalty-brand-title { font-size: 18px; }
+.brand-mark.train-mark { font-size: 20px; }
+.loyalty-brand-btn { padding: 6px 10px; gap: 7px; }
+
+/* Train tab selected → flip the columns … */
+.header-grid:has(.loyalty-brand-btn.active) {
+  grid-template-columns: 1fr 4fr;
+}
+/* … Train Log grows back to full size … */
+.header-grid:has(.loyalty-brand-btn.active) .loyalty-brand-title { font-size: 26px; }
+.header-grid:has(.loyalty-brand-btn.active) .brand-mark.train-mark { font-size: 28px; }
+.header-grid:has(.loyalty-brand-btn.active) .loyalty-brand-btn { padding: 6px 14px; gap: 10px; }
+
+/* … and the Flight side becomes the compact one */
+.header-grid:has(.loyalty-brand-btn.active) .brand h1 { font-size: 18px; }
+.header-grid:has(.loyalty-brand-btn.active) .brand-mark { font-size: 22px; }
+.header-grid:has(.loyalty-brand-btn.active) .brand {
+  padding-right: 10px;
+  margin-right: 2px;
+}
+/* icons only — the labels don't fit in 20% and the icons still navigate back */
+.header-grid:has(.loyalty-brand-btn.active) .tab-label { display: none; }
+.header-grid:has(.loyalty-brand-btn.active) .tabs button { padding: 6px 8px; }
+.header-grid:has(.loyalty-brand-btn.active) .brand-box { gap: 10px; }
+
+/* Size AND colour changes ride the same 220ms as the column swap.
+   (This rule comes last, so it must re-declare the colour transitions
+   from the wordmark block above — otherwise they'd be dropped.) */
+.loyalty-brand-title, .brand h1,
+.brand-mark, .brand-mark.train-mark,
+.loyalty-brand-btn {
+  transition: font-size 220ms ease, padding 220ms ease, gap 220ms ease,
+              color 220ms ease, -webkit-text-fill-color 220ms ease,
+              filter 220ms ease, opacity 220ms ease;
+}
