@@ -52,7 +52,10 @@ export function initLog() {
       </header>
 
       <div class="log-filters">
-        <input type="search" id="f-search" placeholder="Search city, IATA, airline, aircraft…">
+        <input type="search" id="f-search" name="flightlog-filter"
+          placeholder="Search city, IATA, airline, aircraft…"
+          autocomplete="off" autocorrect="off" autocapitalize="off"
+          spellcheck="false" data-lpignore="true" data-1p-ignore>
         <select id="f-year"><option value="all">All years</option></select>
         <select id="f-airline"><option value="all">All airlines</option></select>
         <select id="f-cabin">
@@ -142,6 +145,17 @@ function wireFilters() {
     filters.search = ''; filters.year = 'all'; filters.airline = 'all'; filters.cabin = 'all';
     $search.value = ''; $year.value = 'all'; $airline.value = 'all'; $cabin.value = 'all';
     render();
+  });
+
+  // Coming back from another tab: while this panel was display:none the
+  // scroll container measured 0px high, so the virtual list had no visible
+  // range and drew (next to) nothing. Repaint once we're on screen again.
+  window.addEventListener('flightlog:tab-changed', e => {
+    if (e.detail?.tab !== 'log') return;
+    // If the browser slipped something into the filter box while we were away,
+    // don't let a phantom filter hide every row.
+    if ($search.value !== filters.search) $search.value = filters.search;
+    requestAnimationFrame(() => render(true));
   });
 }
 

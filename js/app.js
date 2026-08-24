@@ -35,7 +35,19 @@ function selectTab(target) {
   for (const p of panels.querySelectorAll('.panel')) {
     p.classList.toggle('active', p.dataset.panel === target);
   }
+  // Expose the active tab to CSS. The header 80/20 split and the blue/grey
+  // wordmarks key off this attribute (an attribute is more dependable here
+  // than :has(), and it works no matter where the button lives in the DOM).
+  document.body.dataset.tab = target;
+  // Panels are display:none while inactive, so anything that measures itself
+  // (the log's virtual list, maps) reads a height of 0 and renders nothing.
+  // Tell them they're visible again.
+  window.dispatchEvent(new CustomEvent('flightlog:tab-changed', { detail: { tab: target } }));
 }
+
+// Reflect the tab that index.html marks active on first paint.
+document.body.dataset.tab =
+  document.querySelector('.panel.active')?.dataset.panel || 'log';
 
 // Delegate clicks on any [data-tab] element to selectTab. This handles the
 // tabs in the left header box AND the Eurostar logo button in the right one.
