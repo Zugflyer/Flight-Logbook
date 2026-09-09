@@ -91,6 +91,23 @@ export function initStatus() {
               </details>
             </div>
 
+            ${p.id === 'af' ? `
+            <div class="status-card uxp-since-card">
+              <div class="status-card-label">
+                <span>UXP since date <span class="uxp-minus">− ${fmt(UXP_SINCE_OFFSET)}</span></span>
+              </div>
+              <div class="uxp-since-row">
+                <input type="date" class="uxp-date-input" id="uxp-start-${p.id}"
+                       aria-label="Start date for the UXP count">
+                <div class="uxp-since-body">
+                  <div class="tp-bar" id="uxp-bar-${p.id}"></div>
+                  <div class="uxp-axis" id="uxp-axis-${p.id}"></div>
+                </div>
+              </div>
+              <div class="uxp-note" id="uxp-note-${p.id}"></div>
+            </div>
+            ` : ''}
+
             <div class="status-card">
               <div class="status-card-label">Year-pace</div>
               <div class="pace-bar" id="pace-bar-${p.id}">
@@ -157,6 +174,16 @@ export function initStatus() {
     });
   });
 
+  // Wire the "UXP since date" picker (Air France column)
+  const $uxpStart = document.getElementById('uxp-start-af');
+  if ($uxpStart) {
+    $uxpStart.value = loadUxpStart('af');
+    $uxpStart.addEventListener('change', () => {
+      saveUxpStart('af', $uxpStart.value);
+      render();
+    });
+  }
+
   onChange(evt => {
     if (!evt) return;
     if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'auth:locked' || evt.type === 'program:changed') {
@@ -182,6 +209,7 @@ function render() {
     renderTierBar(p, b.total);
     renderPaceBar(p, b.total, windowProgress, window);
     renderBreakdown(p, b, window);
+    if (p.id === 'af') renderUxpSince(p);
 
     const $year = document.getElementById(`status-year-${p.id}`);
     if ($year) $year.textContent = window.label;
@@ -196,6 +224,91 @@ function render() {
         $note.textContent = '';
       }
     }
+  }
+}
+
+// ============================================================
+// "UXP since date" bar (Air France)
+// ------------------------------------------------------------
+// Counts UXP earned on AF/KL flights from a freely chosen start date up to
+// today, then subtracts a fixed offset. Independent of the qualification
+// window above: it does NOT apply the manual correction, which belongs to
+// the main balance only.
+// ============================================================
+
+// Subtracted from the raw sum.
+const UXP_SINCE_OFFSET = 900;
+// What the remaining balance is measured against. AF targets are [900, 1850],
+// so the natural next goal after the 900 offset is the gap up to 1850.
+// Change this one number if you want a different scale.
+const UXP_SINCE_TARGET = 950;
+
+const UXP_START_KEY = 'flightlog.uxpSince.v1';
+
+function loadUxpStart(programId) {
+  try {
+    const all = JSON.parse(localStorage.getItem(UXP_START_KEY) || '{}');
+    return all[programId] || '';
+  } catch { return ''; }
+}
+function saveUxpStart(programId, value) {
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem(UXP_START_KEY) || '{}'); } catch {}
+  all[programId] = value || '';
+  localStorage.setItem(UXP_START_KEY, JSON.stringify(all));
+}
+
+/** Sum tier miles for the program's airlines from startStr (inclusive) to today. */
+function sumUxpSince(program, startStr) {
+  const allowed = new Set(program.airlines.map(a => a.toUpperCase()));
+  const todayStr = isoDate(new Date());
+  let sum = 0;
+  let count = 0;
+  for (const f of store.flights) {
+    if (isHistoric(f) || !f.date) continue;
+    if (f.date < startStr || f.date > todayStr) continue;
+    if (!f.airline || !allowed.has(f.airline.toUpperCase())) continue;
+    if (f.tier_miles == null) continue;
+    sum += Number(f.tier_miles) || 0;
+    count++;
+  }
+  return { sum, count };
+}
+
+function renderUxpSince(program) {
+  const $bar  = document.getElementById(`uxp-bar-${program.id}`);
+  const $axis = document.getElementById(`uxp-axis-${program.id}`);
+  const $note = document.getElementById(`uxp-note-${program.id}`);
+  if (!$bar || !$axis) return;
+
+  const startStr = loadUxpStart(program.id);
+  if (!startStr) {
+    $bar.innerHTML = `<div class="tp-track"><div class="tp-fill" style="width:0%"></div></div>`;
+    $axis.innerHTML = `<span class="uxp-axis-hint">Pick a start date</span>`;
+    if ($note) $note.textContent = '';
+    return;
+  }
+
+  const { sum, count } = sumUxpSince(program, startStr);
+  const balance = sum - UXP_SINCE_OFFSET;
+  const pct = clamp(balance / UXP_SINCE_TARGET * 100, 0, 100);
+
+  $bar.innerHTML = `
+    <div class="tp-track">
+      <div class="tp-fill" style="width: ${pct.toFixed(2)}%"></div>
+    </div>
+  `;
+  $axis.innerHTML = `
+    <span class="uxp-axis-num start">0</span>
+    <span class="uxp-axis-num end">${fmt(UXP_SINCE_TARGET)}</span>
+    <span class="uxp-axis-current${balance < 0 ? ' negative' : ''}">${fmt(balance)} / ${fmt(UXP_SINCE_TARGET)}</span>
+  `;
+
+  if ($note) {
+    const flights = `${fmt(count)} flight${count === 1 ? '' : 's'}`;
+    $note.textContent = balance < 0
+      ? `${fmt(sum)} UXP from ${flights} — ${fmt(Math.abs(balance))} short of ${fmt(UXP_SINCE_OFFSET)}`
+      : `${fmt(sum)} UXP from ${flights}, less ${fmt(UXP_SINCE_OFFSET)}`;
   }
 }
 
