@@ -2938,3 +2938,66 @@ body[data-tab="trains"] .tabs button { padding: 6px 8px; }
               color 220ms ease, -webkit-text-fill-color 220ms ease,
               filter 220ms ease, opacity 220ms ease;
 }
+
+/* ============================================================================
+ * "UXP since date" card (Air France column)
+ * ========================================================================== */
+.uxp-since-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.uxp-date-input {
+  font-family: var(--mono, monospace);
+  font-size: 12px;
+  color: var(--fg-0);
+  background: var(--bg-1);
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  line-height: 1.2;
+  min-width: 0;
+}
+.uxp-date-input:focus {
+  outline: none;
+  border-color: var(--prog-accent);
+  box-shadow: 0 0 0 2px var(--prog-accent-soft);
+}
+.uxp-since-body { min-width: 0; }
+
+.uxp-minus {
+  font-weight: 600;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.uxp-axis {
+  position: relative;
+  height: 34px;
+  font-size: 11px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+.uxp-axis-num { position: absolute; top: 2px; white-space: nowrap; }
+.uxp-axis-num.start { left: 0; }
+.uxp-axis-num.end { right: 0; }
+.uxp-axis-current {
+  position: absolute;
+  right: 0;
+  top: 16px;
+  font-weight: 600;
+  color: var(--prog-accent);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.uxp-axis-current.negative { color: var(--danger); }
+.uxp-axis-hint { position: absolute; left: 0; top: 2px; color: var(--fg-3); }
+
+.uxp-note {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--fg-2);
+  font-variant-numeric: tabular-nums;
+}
