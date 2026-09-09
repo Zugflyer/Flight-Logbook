@@ -18,6 +18,7 @@ export const store = {
   programAdjustments: new Map(),
   trainTrips: [],
   aircraftTypes: new Map(),       // full_name → icao
+  programCorrections: [],         // [{ id, program_id, date, amount, note }]
 };
 export function onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 function emit(evt) { for (const fn of listeners) fn(evt); }
@@ -58,6 +59,7 @@ export async function signOut() {
   store.programAdjustments = new Map();
   store.trainTrips = [];
   store.aircraftTypes = new Map();
+  store.programCorrections = [];
   store.ready = false;
   emit({ type: 'auth:locked' });
 }
@@ -78,13 +80,27 @@ async function fetchAll(table, orderCol = null) {
   return all;
 }
 
+/**
+ * Like fetchAll, but never fails the whole load. Used for tables added by a
+ * migration that may not have been applied on this database yet.
+ */
+async function fetchAllOptional(table, orderCol = null) {
+  try {
+    return await fetchAll(table, orderCol);
+  } catch (e) {
+    console.warn(`Optional table "${table}" unavailable — continuing without it.`, e?.message || e);
+    return [];
+  }
+}
+
 export async function loadAll() {
-  const [flights, airports, adjustments, trainTrips, aircraftTypes] = await Promise.all([
+  const [flights, airports, adjustments, trainTrips, aircraftTypes, corrections] = await Promise.all([
     fetchAll('flights', 'date'),
     fetchAll('airports'),
     fetchAll('program_adjustments'),
     fetchAll('train_trips', 'date'),
     fetchAll('aircraft_types'),
+    fetchAllOptional('program_corrections', 'date'),
     loadLogos(),
   ]);
   flights.sort(flightDateCompare);
@@ -94,6 +110,7 @@ export async function loadAll() {
   trainTrips.sort((a, b) => b.date.localeCompare(a.date));
   store.trainTrips = trainTrips;
   store.aircraftTypes = new Map(aircraftTypes.map(r => [r.full_name, r.icao]));
+  store.programCorrections = corrections;
   store.ready = true;
   emit({ type: 'data:loaded', counts: { flights: store.flights.length, airports: store.airports.size } });
 }
@@ -234,6 +251,42 @@ export async function deleteAircraftType(fullName) {
   if (error) throw error;
   store.aircraftTypes.delete(fullName);
   emit({ type: 'aircraft:changed', kind: 'delete', fullName });
+}
+
+// ----------- CRUD: program_corrections (dated manual corrections) -----------
+export async function addProgramCorrection(row) {
+  const payload = {
+    program_id: row.program_id,
+    date: row.date,
+    amount: Math.round(Number(row.amount) || 0),
+    note: row.note || null,
+  };
+  const { data, error } = await sb.from('program_corrections').insert(payload).select().single();
+  if (error) throw error;
+  store.programCorrections.push(data);
+  store.programCorrections.sort((a, b) => a.date.localeCompare(b.date));
+  emit({ type: 'corrections:changed', kind: 'add', row: data });
+  return data;
+}
+
+export async function updateProgramCorrection(id, patch) {
+  const payload = { ...patch, updated_at: new Date().toISOString() };
+  if (payload.amount !== undefined) payload.amount = Math.round(Number(payload.amount) || 0);
+  const { data, error } = await sb.from('program_corrections')
+    .update(payload).eq('id', id).select().single();
+  if (error) throw error;
+  const idx = store.programCorrections.findIndex(c => c.id === id);
+  if (idx >= 0) store.programCorrections[idx] = data;
+  store.programCorrections.sort((a, b) => a.date.localeCompare(b.date));
+  emit({ type: 'corrections:changed', kind: 'update', row: data });
+  return data;
+}
+
+export async function deleteProgramCorrection(id) {
+  const { error } = await sb.from('program_corrections').delete().eq('id', id);
+  if (error) throw error;
+  store.programCorrections = store.programCorrections.filter(c => c.id !== id);
+  emit({ type: 'corrections:changed', kind: 'delete', id });
 }
 
 // ----------- Program adjustments (manual corrections, qualification windows) -----------

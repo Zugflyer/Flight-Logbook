@@ -8,7 +8,8 @@
 //      progress vs target, percentage at the right = pace ratio.
 // ============================================================================
 
-import { store, onChange, isHistoric, setProgramAdjustment } from './data.js';
+import { store, onChange, isHistoric, setProgramAdjustment,
+         addProgramCorrection, updateProgramCorrection, deleteProgramCorrection } from './data.js';
 import { getLogoUrl as _supabaseLogoUrl } from './logos.js';
 
 // Sim uses local assets/logos/<CODE>.png (committed to repo).
@@ -186,7 +187,7 @@ export function initStatus() {
 
   onChange(evt => {
     if (!evt) return;
-    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'auth:locked' || evt.type === 'program:changed') {
+    if (evt.type === 'data:loaded' || evt.type === 'data:changed' || evt.type === 'auth:locked' || evt.type === 'program:changed' || evt.type === 'corrections:changed') {
       render();
     }
   });
@@ -281,8 +282,7 @@ function sumUxpSince(program, startStr) {
     fromFlights += Number(f.tier_miles) || 0;
     count++;
   }
-  const adj = store.programAdjustments?.get(program.id);
-  const correction = (adj && Number.isFinite(adj.manual_correction)) ? adj.manual_correction : 0;
+  const correction = correctionsInRange(program.id, startStr, endStr).total;
   return { sum: fromFlights + correction, fromFlights, correction, count };
 }
 
@@ -372,6 +372,17 @@ function formatWindowLabel(start, end) {
 }
 
 // ---------- Balance ----------
+/**
+ * Corrections are dated rows now, so only the ones inside the window count.
+ * startStr inclusive, endStr exclusive (both 'YYYY-MM-DD').
+ */
+function correctionsInRange(programId, startStr, endStr) {
+  const rows = (store.programCorrections || []).filter(c =>
+    c.program_id === programId && c.date >= startStr && c.date < endStr);
+  const total = rows.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  return { total, rows };
+}
+
 function computeBalance(program, window) {
   const allowed = new Set(program.airlines.map(a => a.toUpperCase()));
   const contributions = [];
@@ -390,8 +401,7 @@ function computeBalance(program, window) {
     sum += miles;
     contributions.push({ flight: f, miles });
   }
-  const adj = store.programAdjustments?.get(program.id);
-  const correction = (adj && Number.isFinite(adj.manual_correction)) ? adj.manual_correction : 0;
+  const correction = correctionsInRange(program.id, startStr, endStr).total;
   return { total: sum + correction, fromFlights: sum, contributions, correction };
 }
 
@@ -1115,8 +1125,14 @@ function openRolloverModal(programId) {
   const program = PROGRAMS.find(p => p.id === programId);
   if (!program) return;
   const adj = store.programAdjustments?.get(programId) || {};
-  const currentCorrection = Number.isFinite(adj.manual_correction) ? adj.manual_correction : 0;
   const currentStart = adj.qualification_start || '';
+
+  // Working copy. New rows get a temporary id so we can tell them apart on save.
+  const original = (store.programCorrections || [])
+    .filter(c => c.program_id === programId)
+    .map(c => ({ id: c.id, date: c.date, amount: c.amount, note: c.note || '' }));
+  let working = original.map(c => ({ ...c }));
+  let tmpSeq = 0;
 
   const wrap = document.createElement('div');
   wrap.className = 'modal';
@@ -1128,9 +1144,11 @@ function openRolloverModal(programId) {
       </header>
       <div class="modal-body">
         <div class="field">
-          <label>Manual balance correction</label>
-          <input type="number" id="ro-correction" step="1" value="${currentCorrection}" autocomplete="off">
-          <p class="hint-text">Added to the total. Use a negative number to subtract (e.g. to remove an unexplained "gift" from the balance).</p>
+          <label>Manual corrections</label>
+          <p class="hint-text">Each correction has a date and only counts in a period that contains that date. Negative amounts subtract.</p>
+          <div class="corr-head"><span>Date</span><span>Amount</span><span>Note</span><span></span></div>
+          <div id="ro-corr-rows"></div>
+          <button type="button" class="ghost small" id="ro-corr-add">+ Add correction</button>
         </div>
 
         <div class="field">
@@ -1153,32 +1171,81 @@ function openRolloverModal(programId) {
   `;
   document.body.appendChild(wrap);
 
-  const close = () => wrap.remove();
-  const $correction = wrap.querySelector('#ro-correction');
+  const close  = () => wrap.remove();
+  const $rows  = wrap.querySelector('#ro-corr-rows');
   const $start = wrap.querySelector('#ro-start');
-  setTimeout(() => { $correction.focus(); $correction.select(); }, 0);
+  const $err   = wrap.querySelector('#ro-error');
+
+  function renderRows() {
+    if (working.length === 0) {
+      $rows.innerHTML = `<p class="corr-empty">No corrections yet.</p>`;
+      return;
+    }
+    $rows.innerHTML = working.map(c => `
+      <div class="corr-row" data-id="${c.id}">
+        <input type="date"   class="corr-date"   value="${c.date || ''}" data-f="date">
+        <input type="number" class="corr-amount" value="${c.amount}" step="1" data-f="amount">
+        <input type="text"   class="corr-note"   value="${escapeHtml(c.note || '')}" placeholder="optional" data-f="note">
+        <button type="button" class="ghost icon-only corr-del" title="Remove">×</button>
+      </div>
+    `).join('');
+  }
+
+  $rows.addEventListener('input', e => {
+    const row = e.target.closest('.corr-row');
+    if (!row) return;
+    const rec = working.find(c => String(c.id) === row.dataset.id);
+    if (rec && e.target.dataset.f) rec[e.target.dataset.f] = e.target.value;
+  });
+
+  $rows.addEventListener('click', e => {
+    if (!e.target.closest('.corr-del')) return;
+    const row = e.target.closest('.corr-row');
+    working = working.filter(c => String(c.id) !== row.dataset.id);
+    renderRows();
+  });
+
+  wrap.querySelector('#ro-corr-add').addEventListener('click', () => {
+    working.push({ id: `tmp-${++tmpSeq}`, date: isoDate(new Date()), amount: 0, note: '' });
+    renderRows();
+    $rows.querySelector('.corr-row:last-child .corr-amount')?.focus();
+  });
+
+  renderRows();
 
   wrap.querySelector('#ro-close').addEventListener('click', close);
   wrap.querySelector('#ro-cancel').addEventListener('click', close);
   wrap.querySelector('#ro-start-clear').addEventListener('click', () => { $start.value = ''; });
   wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+  wrap.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
 
   const save = async () => {
-    const $err = wrap.querySelector('#ro-error');
     $err.textContent = '';
-    const cVal = $correction.value.trim();
-    if (cVal === '' || isNaN(Number(cVal))) {
-      $err.textContent = 'Manual correction must be a number (negative is allowed).';
-      return;
+    for (const c of working) {
+      if (!c.date) { $err.textContent = 'Every correction needs a date.'; return; }
+      if (c.amount === '' || isNaN(Number(c.amount))) {
+        $err.textContent = 'Every correction needs a numeric amount (negative is allowed).';
+        return;
+      }
     }
-    const startVal = $start.value || null;
     const $save = wrap.querySelector('#ro-save');
     $save.disabled = true;
     try {
-      await setProgramAdjustment(programId, {
-        manual_correction: Number(cVal),
-        qualification_start: startVal,
-      });
+      for (const o of original) {
+        if (!working.some(c => c.id === o.id)) await deleteProgramCorrection(o.id);
+      }
+      for (const c of working) {
+        const amount = Number(c.amount);
+        if (String(c.id).startsWith('tmp-')) {
+          await addProgramCorrection({ program_id: programId, date: c.date, amount, note: c.note });
+        } else {
+          const o = original.find(x => x.id === c.id);
+          if (o && (o.date !== c.date || Number(o.amount) !== amount || (o.note || '') !== (c.note || ''))) {
+            await updateProgramCorrection(c.id, { date: c.date, amount, note: c.note || null });
+          }
+        }
+      }
+      await setProgramAdjustment(programId, { qualification_start: $start.value || null });
       close();
     } catch (e) {
       $err.textContent = 'Save failed: ' + (e.message || e);
@@ -1187,12 +1254,4 @@ function openRolloverModal(programId) {
   };
 
   wrap.querySelector('#ro-save').addEventListener('click', save);
-  $correction.addEventListener('keydown', e => {
-    if (e.key === 'Enter') save();
-    if (e.key === 'Escape') close();
-  });
-  $start.addEventListener('keydown', e => {
-    if (e.key === 'Enter') save();
-    if (e.key === 'Escape') close();
-  });
 }
