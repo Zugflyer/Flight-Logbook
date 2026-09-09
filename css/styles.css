@@ -2966,7 +2966,7 @@ body[data-tab="trains"] .tabs button { padding: 6px 8px; }
 }
 .uxp-since-body { min-width: 0; }
 
-.uxp-minus {
+.uxp-goal {
   font-weight: 600;
   color: var(--fg-2);
   font-variant-numeric: tabular-nums;
@@ -2992,7 +2992,7 @@ body[data-tab="trains"] .tabs button { padding: 6px 8px; }
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
-.uxp-axis-current.negative { color: var(--danger); }
+.uxp-axis-current.reached { color: var(--success); }
 .uxp-axis-hint { position: absolute; left: 0; top: 2px; color: var(--fg-3); }
 
 .uxp-note {
