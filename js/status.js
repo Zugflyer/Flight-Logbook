@@ -3,7 +3,7 @@
 //
 // Three-column layout (Air France / Finnair / Swiss). Each column has:
 //   1. Alliance badge at the top
-//   2. Tier-point progress bar (segmented for Air France: 0→900→1850)
+//   2. Tier-point progress bar (segmented for Air France: 0→900→1800)
 //   3. Calendar-pace bar — white = year progress, blue inside = tier-point
 //      progress vs target, percentage at the right = pace ratio.
 // ============================================================================
@@ -30,7 +30,7 @@ const PROGRAMS = [
     airlineLogo: 'assets/logos/airfrance.png',
     accent: '#002157',
     accentSoft: '#e6ecf5',
-    targets: [900, 1850],
+    targets: [900, 1800],
     airlines: ['AF', 'KL'],
   },
   {
@@ -92,11 +92,19 @@ export function initStatus() {
               </details>
             </div>
 
+            <div class="status-card">
+              <div class="status-card-label">Year-pace</div>
+              <div class="pace-bar" id="pace-bar-${p.id}">
+                <div class="pace-year-fill"></div>
+                <div class="pace-tp-fill"></div>
+                <div class="pace-pct"></div>
+              </div>
+              <div class="pace-axis"><span>JAN</span><span>DEC</span></div>
+            </div>
+
             ${p.id === 'af' ? `
             <div class="status-card uxp-since-card">
-              <div class="status-card-label">
-                <span>UXP since date <span class="uxp-goal">goal ${fmt(UXP_SINCE_TARGET)}</span></span>
-              </div>
+              <div class="status-card-label">UXP for choice benefits</div>
               <div class="uxp-since-row">
                 <input type="date" class="uxp-date-input" id="uxp-start-${p.id}"
                        aria-label="Start date for the UXP count">
@@ -108,16 +116,6 @@ export function initStatus() {
               <div class="uxp-note" id="uxp-note-${p.id}"></div>
             </div>
             ` : ''}
-
-            <div class="status-card">
-              <div class="status-card-label">Year-pace</div>
-              <div class="pace-bar" id="pace-bar-${p.id}">
-                <div class="pace-year-fill"></div>
-                <div class="pace-tp-fill"></div>
-                <div class="pace-pct"></div>
-              </div>
-              <div class="pace-axis"><span>JAN</span><span>DEC</span></div>
-            </div>
 
             ${p.id === 'ay' ? `
             <div class="status-card sim-card" id="ay-sim-card">
@@ -451,7 +449,7 @@ function renderTierBar(program, balance) {
       <span class="tp-axis-current">${fmt(balance)} / ${fmt(target)}</span>
     `;
   } else {
-    // Two-segment bar (Air France: 0→900→1850).
+    // Two-segment bar (Air France: 0→900→1800).
     // Each segment occupies its proportional share of the full axis.
     const t1 = targets[0];
     const t2 = targets[1];
