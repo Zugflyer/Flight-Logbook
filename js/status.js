@@ -94,7 +94,7 @@ export function initStatus() {
             ${p.id === 'af' ? `
             <div class="status-card uxp-since-card">
               <div class="status-card-label">
-                <span>UXP since date <span class="uxp-minus">− ${fmt(UXP_SINCE_OFFSET)}</span></span>
+                <span>UXP since date <span class="uxp-goal">goal ${fmt(UXP_SINCE_TARGET)}</span></span>
               </div>
               <div class="uxp-since-row">
                 <input type="date" class="uxp-date-input" id="uxp-start-${p.id}"
@@ -236,12 +236,8 @@ function render() {
 // the main balance only.
 // ============================================================
 
-// Subtracted from the raw sum.
-const UXP_SINCE_OFFSET = 900;
-// What the remaining balance is measured against. AF targets are [900, 1850],
-// so the natural next goal after the 900 offset is the gap up to 1850.
-// Change this one number if you want a different scale.
-const UXP_SINCE_TARGET = 950;
+// Goal for the 12 months following the chosen start date.
+const UXP_SINCE_TARGET = 750;
 
 const UXP_START_KEY = 'flightlog.uxpSince.v1';
 
@@ -258,21 +254,36 @@ function saveUxpStart(programId, value) {
   localStorage.setItem(UXP_START_KEY, JSON.stringify(all));
 }
 
-/** Sum tier miles for the program's airlines from startStr (inclusive) to today. */
+/** The 12-month goal period that starts on startStr ('YYYY-MM-DD'). */
+function uxpSinceWindow(startStr) {
+  const [y, m, d] = startStr.split('-').map(Number);
+  const start = new Date(y, m - 1, d);
+  const end = new Date(y + 1, m - 1, d);   // exclusive
+  return { start, end };
+}
+
+/**
+ * Sum tier miles across the whole 12-month window, mirroring the main tier
+ * counter: every flight dated inside the window counts, including ones still
+ * in the future, and the manual correction from the "+" dialog is added on top.
+ */
 function sumUxpSince(program, startStr) {
   const allowed = new Set(program.airlines.map(a => a.toUpperCase()));
-  const todayStr = isoDate(new Date());
-  let sum = 0;
+  const { end } = uxpSinceWindow(startStr);
+  const endStr = isoDate(end);   // exclusive
+  let fromFlights = 0;
   let count = 0;
   for (const f of store.flights) {
     if (isHistoric(f) || !f.date) continue;
-    if (f.date < startStr || f.date > todayStr) continue;
+    if (f.date < startStr || f.date >= endStr) continue;
     if (!f.airline || !allowed.has(f.airline.toUpperCase())) continue;
     if (f.tier_miles == null) continue;
-    sum += Number(f.tier_miles) || 0;
+    fromFlights += Number(f.tier_miles) || 0;
     count++;
   }
-  return { sum, count };
+  const adj = store.programAdjustments?.get(program.id);
+  const correction = (adj && Number.isFinite(adj.manual_correction)) ? adj.manual_correction : 0;
+  return { sum: fromFlights + correction, fromFlights, correction, count };
 }
 
 function renderUxpSince(program) {
@@ -289,9 +300,10 @@ function renderUxpSince(program) {
     return;
   }
 
-  const { sum, count } = sumUxpSince(program, startStr);
-  const balance = sum - UXP_SINCE_OFFSET;
-  const pct = clamp(balance / UXP_SINCE_TARGET * 100, 0, 100);
+  const { sum, fromFlights, correction, count } = sumUxpSince(program, startStr);
+  const pct = clamp(sum / UXP_SINCE_TARGET * 100, 0, 100);
+  const remaining = Math.max(0, UXP_SINCE_TARGET - sum);
+  const reached = sum >= UXP_SINCE_TARGET;
 
   $bar.innerHTML = `
     <div class="tp-track">
@@ -301,14 +313,19 @@ function renderUxpSince(program) {
   $axis.innerHTML = `
     <span class="uxp-axis-num start">0</span>
     <span class="uxp-axis-num end">${fmt(UXP_SINCE_TARGET)}</span>
-    <span class="uxp-axis-current${balance < 0 ? ' negative' : ''}">${fmt(balance)} / ${fmt(UXP_SINCE_TARGET)}</span>
+    <span class="uxp-axis-current${reached ? ' reached' : ''}">${fmt(sum)} / ${fmt(UXP_SINCE_TARGET)}</span>
   `;
 
   if ($note) {
+    const { end } = uxpSinceWindow(startStr);
+    const deadline = end.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
     const flights = `${fmt(count)} flight${count === 1 ? '' : 's'}`;
-    $note.textContent = balance < 0
-      ? `${fmt(sum)} UXP from ${flights} — ${fmt(Math.abs(balance))} short of ${fmt(UXP_SINCE_OFFSET)}`
-      : `${fmt(sum)} UXP from ${flights}, less ${fmt(UXP_SINCE_OFFSET)}`;
+    const daysLeft = Math.ceil((end - new Date()) / 86400000);
+    const tail = reached
+      ? 'goal reached'
+      : `${fmt(remaining)} to go` + (daysLeft > 0 ? ` · ${fmt(daysLeft)} days left` : ' · period ended');
+    const corr = correction ? ` (incl. ${fmt(correction)} correction)` : '';
+    $note.textContent = `${fmt(fromFlights)} UXP from ${flights}${corr} · ${tail} · until ${deadline}`;
   }
 }
 
