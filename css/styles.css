@@ -2966,11 +2966,6 @@ body[data-tab="trains"] .tabs button { padding: 6px 8px; }
 }
 .uxp-since-body { min-width: 0; }
 
-.uxp-goal {
-  font-weight: 600;
-  color: var(--fg-2);
-  font-variant-numeric: tabular-nums;
-}
 
 .uxp-axis {
   position: relative;
